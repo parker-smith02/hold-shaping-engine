@@ -31,7 +31,7 @@ def test_ravage_baseline(tmp_path):
     assert m["size_mm"][2] == pytest.approx(21.8, abs=0.5)
     assert m["volume_cm3"] == pytest.approx(84.0, rel=0.03)
     for st in summary["stations"]:
-        if not st["cuts_screw"]:
+        if not st["cuts_screw"] and not st["features"]:
             assert st["deviation_mm"]["max"] < 0.25, st
             assert st["deviation_mm"]["mean"] < 0.03, st
     assert json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))["name"] == s["name"]

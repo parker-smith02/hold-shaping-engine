@@ -8,6 +8,7 @@ interface StationReport {
   x: number;
   deviation_mm: { max: number; mean: number; p95: number };
   cuts_screw: boolean;
+  features?: number[];          // absent in older build reports
 }
 
 export class BuildPanel {
@@ -59,13 +60,13 @@ export class BuildPanel {
     }
     const rep = st.report as { mesh: { watertight: boolean; size_mm: number[]; volume_cm3: number }; stations: StationReport[]; elapsed_s: number } | null;
     const url = (f: string) => api.buildFileUrl(st.id, f);
-    const worst = rep ? Math.max(...rep.stations.filter((s) => !s.cuts_screw).map((s) => s.deviation_mm.max)) : NaN;
+    const worst = rep ? Math.max(...rep.stations.filter((s) => !s.cuts_screw && !s.features?.length).map((s) => s.deviation_mm.max)) : NaN;
     const parts: (HTMLElement | null)[] = [
       h("div", { class: "row" },
         h("a", { href: url("hold.stl"), download: `${st.name}.stl`, text: "Download STL" }),
         h("a", { href: url("report.md"), target: "_blank", text: "report.md" }),
         rep ? h("span", { class: "mono muted", text: `${rep.mesh.size_mm.join(" × ")} mm · ${rep.mesh.volume_cm3} cm³ · ${rep.elapsed_s} s · watertight ${rep.mesh.watertight ? "yes" : "NO"}` }) : null),
-      rep ? h("p", { class: "help", text: `Worst station deviation from your splines (excluding screw cuts): ${worst.toFixed(2)} mm.` }) : null,
+      rep ? h("p", { class: "help", text: `Worst station deviation from your splines (excluding stations that cut a screw or cross a feature): ${worst.toFixed(2)} mm.` }) : null,
       h("div", { class: "build-imgs" },
         h("img", { src: url("overlay.png"), alt: "Drawn sections (black) over built sections (blue) at every station" }),
         h("img", { src: url("preview.png"), alt: "Shaded views of the built hold" })),

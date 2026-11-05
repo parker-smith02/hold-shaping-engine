@@ -24,10 +24,16 @@ def report_md(spec: dict, chk: dict, rep: dict, screws: list, elapsed: float) ->
              f"watertight: {'yes' if chk['watertight'] else 'NO'}.\n")
     L.append("## Fidelity at stations (drawn spline vs built mesh)\n")
     L.append("| x | max dev | mean dev | p95 | note |\n|---|---|---|---|---|")
+    feats = spec.get("features", [])
     for s in rep["stations"]:
         d = s["deviation_mm"]
-        L.append(f"| {s['x']:g} | {d['max']:.2f} | {d['mean']:.3f} | {d['p95']:.2f} | "
-                 f"{'cuts a screw hole' if s['cuts_screw'] else ''} |")
+        note = ["cuts a screw hole"] if s["cuts_screw"] else []
+        for k in s["features"]:
+            f = feats[k]
+            note.append(f"crosses feature {k} ({f['type']}: {f['note']})" if f.get("note")
+                        else f"crosses feature {k} ({f['type']})")
+        L.append(f"| {s['x']:g} | {d['max']:.2f} | {d['mean']:.3f} | {d['p95']:.2f} | {'; '.join(note)} |")
+    L.append("\nStations that cut a screw hole or cross a feature are expected to deviate there.")
     L.append("\n## Readouts (information only, not targets)\n")
     L.append(f"Wall angle {spec['wall_angle_deg']}°. 'Ledge on wall' = degrees below horizontal when hung.\n")
     L.append("| x | where | depth | chord incut | incut at wall | incut near lip | ledge on wall | thickness |")
