@@ -11,6 +11,7 @@ import json
 import multiprocessing as mp
 import re
 import threading
+import time
 import traceback
 import uuid
 from pathlib import Path
@@ -23,12 +24,32 @@ def _now() -> str:
 JOB_ID_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 
 
+def _retry(fn, tries: int = 50, delay: float = 0.01):
+    """Windows can't replace a file another process has open (and a reader can catch the swap):
+    status.json is written by the worker while the server polls it, so retry briefly."""
+    for i in range(tries):
+        try:
+            return fn()
+        except (PermissionError, json.JSONDecodeError):
+            if i == tries - 1:
+                raise
+            time.sleep(delay)
+
+
+def _read_status(path: Path) -> dict:
+    return _retry(lambda: json.loads(path.read_text(encoding="utf-8")))
+
+
+def _write_status(path: Path, st: dict) -> None:
+    tmp = path.with_name(f"{path.name}.{mp.current_process().pid}.tmp")   # worker and server never share a tmp
+    tmp.write_text(json.dumps(st, indent=1), encoding="utf-8")
+    _retry(lambda: tmp.replace(path))
+
+
 def _patch_status(path: Path, **fields) -> None:
-    st = json.loads(path.read_text())
+    st = _read_status(path)
     st.update(fields)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(st, indent=1))
-    tmp.replace(path)
+    _write_status(path, st)
 
 
 def _run(spec: dict, out_dir: str) -> dict:
@@ -53,6 +74,19 @@ class BuildJobs:
         ctx = mp.get_context("spawn")                       # no fork of a threaded server
         self.pool = cf.ProcessPoolExecutor(max_workers=workers, mp_context=ctx)
         self.lock = threading.Lock()
+        self._fail_interrupted()
+
+    def _fail_interrupted(self) -> None:
+        """Jobs left queued/running by a previous server process will never finish: say so."""
+        for p in self.root.glob("*/status.json"):
+            try:
+                st = _read_status(p)
+            except (OSError, json.JSONDecodeError):
+                continue
+            if st.get("state") in ("queued", "running"):
+                st.update(state="failed", error="interrupted: the server stopped before the build finished",
+                          finished=_now())
+                _write_status(p, st)
 
     def _status_path(self, job_id: str) -> Path:
         return self.root / job_id / "status.json"
@@ -60,9 +94,7 @@ class BuildJobs:
     def _write(self, st: dict) -> None:
         p = self._status_path(st["id"])
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(".tmp")
-        tmp.write_text(json.dumps(st, indent=1))
-        tmp.replace(p)
+        _write_status(p, st)
 
     def submit(self, spec: dict) -> dict:
         job_id = dt.datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
@@ -93,7 +125,7 @@ class BuildJobs:
         p = self._status_path(job_id)
         if not p.exists():
             raise FileNotFoundError(job_id)
-        return json.loads(p.read_text())
+        return _read_status(p)
 
     def file(self, job_id: str, name: str) -> Path:
         from holdgen.pipeline import OUTPUT_FILES
@@ -105,4 +137,12 @@ class BuildJobs:
         return p
 
     def shutdown(self) -> None:
+        """Stop now: cancel queued jobs and kill a running build (otherwise interpreter exit waits
+        for it). The next server start marks it failed."""
+        procs = list((self.pool._processes or {}).values())    # no public API for killing workers
         self.pool.shutdown(wait=False, cancel_futures=True)
+        for proc in procs:
+            if proc.is_alive():
+                proc.terminate()
+        for proc in procs:
+            proc.join(timeout=5)

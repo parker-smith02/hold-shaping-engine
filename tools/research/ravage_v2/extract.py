@@ -111,7 +111,7 @@ def main():
     if not a.no_views:
         spec["front_view"] = {"points": front_outline(S, xs, ys).tolist(), "strength": a.views_strength}
         spec["top_view"] = {"points": top_outline(S, xs, zs).tolist(), "strength": a.views_strength}
-    with open(a.out, "w") as f:
+    with open(a.out, "w", encoding="utf-8") as f:
         json.dump(spec, f, indent=1)
 
 

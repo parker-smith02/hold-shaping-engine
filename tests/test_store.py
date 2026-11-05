@@ -20,7 +20,7 @@ def test_roundtrip_and_listing(tmp_path, ravage_raw):
 def test_one_point_per_line_for_clean_diffs(tmp_path, ravage_raw):
     s = HoldStore(tmp_path)
     s.put("h", ravage_raw)
-    text = (tmp_path / "h.json").read_text()
+    text = (tmp_path / "h.json").read_text(encoding="utf-8")
     first = ravage_raw["stations"][0]["points"][1]
     assert f"[{json.dumps(first[0])}, {json.dumps(first[1])}]" in text
     assert json.loads(text) == ravage_raw

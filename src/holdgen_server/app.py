@@ -112,6 +112,10 @@ def create_app(holds_dir: Path, builds_dir: Path, web_dist: Optional[Path] = Non
 
     @app.put("/api/holds/{name}", response_model=M.SaveResponse, responses=ERRORS)
     def hold_put(name: str, spec: dict[str, Any] = Body(...)):
+        try:
+            store.check_name(name)                 # a bad path is a bad request, not a bad spec
+        except StoreError as e:
+            raise ApiError(400, str(e))
         raw = {**spec, "name": name}
         model, issues = schema.validate(raw)
         if model is None:                          # structurally broken: refuse. Semantic errors are fine in drafts.

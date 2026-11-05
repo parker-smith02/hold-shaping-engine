@@ -7,7 +7,10 @@ export default defineConfig({
     port: 5173,
     proxy: { "/api": { target: process.env.HOLDGEN_API ?? "http://127.0.0.1:8000", changeOrigin: false } },
   },
-  build: { outDir: "dist", sourcemap: true, target: "es2022" },
+  build: {
+    outDir: "dist", sourcemap: true, target: "es2022",
+    rollupOptions: { output: { manualChunks: { three: ["three"] } } },   // vendor chunk: caches across app rebuilds
+  },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],

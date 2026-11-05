@@ -1,7 +1,8 @@
 """Preview renders (PIL painter's algorithm), section overlays and the spec sheet."""
+import matplotlib
 import numpy as np
 from PIL import Image, ImageDraw
-import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
@@ -102,7 +103,7 @@ def overlay(spec, L, report, path):
             for name, ci in spec["stations"][i]["landmarks"].items():
                 ax.annotate(name, pts[ci], fontsize=6, color="#d04a2f", xytext=(3, 3), textcoords="offset points")
             dv = s["deviation_mm"]
-            flag = " (cuts screw)" if s["cuts_screw"] else ""
+            flag = "".join([" (cuts screw)"] * s["cuts_screw"] + [" (feature)"] * bool(s["features"]))
             ax.set_title(f"station x = {s['x']:g}{flag}\nmax {dv['max']:.2f}  mean {dv['mean']:.2f} mm",
                          fontsize=8)
         else:

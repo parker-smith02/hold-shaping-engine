@@ -24,10 +24,12 @@ export class View3D {
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(window.devicePixelRatio || 1);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x445055, 1.6));
-    const key = new THREE.DirectionalLight(0xffffff, 1.6);
+    // Physically based intensities (three r155+): a low fill so the key light shapes the surface,
+    // which is what the preview is for (reading scoops, lips and tips).
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x445055, 0.55));
+    const key = new THREE.DirectionalLight(0xffffff, 2.6);
     key.position.set(-120, 200, 260);
-    const rim = new THREE.DirectionalLight(0xffffff, 0.5);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.9);
     rim.position.set(200, -80, 120);
     this.scene.add(key, rim, this.root);
     this.root.add(this.screws);

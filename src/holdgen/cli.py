@@ -16,7 +16,7 @@ from . import loft as loft_mod, pipeline, render, schema, spec as spec_mod
 
 
 def _load_raw(path):
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -31,7 +31,7 @@ def cmd_build(a) -> int:
         spec["build"]["voxel"] = a.voxel
     out = a.out or os.path.join("out", spec["name"])
     summary = pipeline.build_to_dir(spec, out, previews=not a.no_preview, log=lambda m: print(m, file=sys.stderr))
-    print(open(os.path.join(out, "report.md")).read())
+    print(open(os.path.join(out, "report.md"), encoding="utf-8").read())
     return 0 if summary["mesh"]["watertight"] else 1
 
 

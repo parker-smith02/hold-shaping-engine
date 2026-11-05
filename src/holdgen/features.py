@@ -16,9 +16,9 @@ import numpy as np
 
 def _box(axes, lo, hi):
     sl = []
-    for a, l, h in zip(axes, lo, hi):
-        i0 = max(int(np.searchsorted(a, l)) - 1, 0)
-        i1 = min(int(np.searchsorted(a, h)) + 1, len(a))
+    for a, a0, a1 in zip(axes, lo, hi):
+        i0 = max(int(np.searchsorted(a, a0)) - 1, 0)
+        i1 = min(int(np.searchsorted(a, a1)) + 1, len(a))
         sl.append(slice(i0, i1))
     return tuple(sl)
 

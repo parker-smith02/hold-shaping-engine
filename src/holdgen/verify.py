@@ -8,6 +8,29 @@ from scipy.spatial import cKDTree
 
 from . import curves
 
+FEATURE_REACH_MM = 0.05     # a feature "touches" a station where it moves the surface by more than this
+
+
+def features_touching(features, x0: float) -> list[int]:
+    """Indices of the features whose displacement (A * exp(-(d/s)^2), see features.apply) exceeds
+    FEATURE_REACH_MM somewhere on the plane x = x0. Those stations are expected to deviate."""
+    out = []
+    for k, f in enumerate(features):
+        A = abs(float(f["depth"]))
+        if A <= FEATURE_REACH_MM:
+            continue
+        reach = np.sqrt(np.log(A / FEATURE_REACH_MM))
+        if f["type"] == "dent":
+            lo = hi = float(f["center"][0])
+            reach *= float(f["size"][0])
+        else:
+            xs = [float(p[0]) for p in f["path"]]
+            lo, hi = min(xs), max(xs)
+            reach *= float(f["width"]) / 2
+        if lo - reach < x0 < hi + reach:
+            out.append(k)
+    return out
+
 
 def slice_mesh(V, T, x0):
     """Intersect the mesh with the plane x = x0. Returns segments (n, 2, 2) as [z, y]."""
@@ -104,6 +127,7 @@ def run(spec, L, V, T):
                          for sx, _ in spec["mounting"]["screws"])
         stations.append({"x": st["x"], "deviation_mm": {k: round(v, 3) for k, v in dev.items()},
                          "cuts_screw": near_screw,
+                         "features": features_touching(spec.get("features", []), st["x"]),
                          "readouts": readouts(L.dense[i], apex_dense, wall), "segments": seg})
     # between stations: readouts on the lofted (pre-mesh) section
     mids = []

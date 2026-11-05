@@ -25,7 +25,7 @@ def sample(S, axes, P):
 
 
 def main(ref, stl, spec_path, out_png):
-    spec = json.load(open(spec_path))
+    spec = json.load(open(spec_path, encoding="utf-8"))
     S = np.load(f"{ref}/sdf_noscrews.npy")
     m = np.load(f"{ref}/meta.npz")
     axes = (m["xs"], m["ys"], m["zs"])

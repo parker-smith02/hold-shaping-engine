@@ -9,7 +9,7 @@ FIXTURES = ROOT / "tests" / "fixtures"
 
 
 def load_fixture(name: str) -> dict:
-    return json.loads((FIXTURES / name).read_text())
+    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
 
 @pytest.fixture

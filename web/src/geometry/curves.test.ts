@@ -7,7 +7,7 @@ type Case = { name: string; kind: "open" | "closed"; points: Vec2[]; corners: nu
 const maxDiff = (a: Vec2[], b: Vec2[]) => Math.max(...a.map((p, i) => Math.hypot(p[0] - b[i][0], p[1] - b[i][1])));
 
 describe("curves match holdgen/curves.py (golden output)", () => {
-  for (const c of (golden as { cases: Case[] }).cases) {
+  for (const c of (golden as unknown as { cases: Case[] }).cases) {
     it(c.name, () => {
       if (c.kind === "open") {
         const { dense, idx } = evalOpen(c.points, c.corners, c.step);
