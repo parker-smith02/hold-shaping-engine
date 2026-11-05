@@ -15,7 +15,7 @@ ALL_SPECS = sorted(FIXTURES.glob("*.json")) + sorted((ROOT / "holds").glob("*.js
 
 @pytest.mark.parametrize("path", ALL_SPECS, ids=lambda p: p.name)
 def test_fixtures_and_holds_are_valid(path):
-    raw = json.loads(path.read_text())
+    raw = json.loads(path.read_text(encoding="utf-8"))
     model, issues = schema.validate(raw)
     assert model is not None
     assert not [i for i in issues if i.level == "error"], issues

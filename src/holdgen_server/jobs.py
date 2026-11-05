@@ -24,7 +24,7 @@ JOB_ID_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 
 
 def _patch_status(path: Path, **fields) -> None:
-    st = json.loads(path.read_text())
+    st = json.loads(path.read_text(encoding="utf-8"))
     st.update(fields)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(st, indent=1))
@@ -93,7 +93,7 @@ class BuildJobs:
         p = self._status_path(job_id)
         if not p.exists():
             raise FileNotFoundError(job_id)
-        return json.loads(p.read_text())
+        return json.loads(p.read_text(encoding="utf-8"))
 
     def file(self, job_id: str, name: str) -> Path:
         from holdgen.pipeline import OUTPUT_FILES

@@ -36,5 +36,5 @@ def normalize(raw: dict) -> dict:
 
 
 def load(path) -> dict:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return normalize(json.load(f))

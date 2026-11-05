@@ -34,7 +34,7 @@ def test_ravage_baseline(tmp_path):
         if not st["cuts_screw"]:
             assert st["deviation_mm"]["max"] < 0.25, st
             assert st["deviation_mm"]["mean"] < 0.03, st
-    assert json.loads((tmp_path / "report.json").read_text())["name"] == s["name"]
+    assert json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))["name"] == s["name"]
 
 
 @pytest.mark.slow

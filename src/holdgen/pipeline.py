@@ -64,7 +64,7 @@ def build_to_dir(spec: dict, out_dir: str, *, previews: bool = True,
     log(f"  mesh: {chk['triangles']:,} tris, watertight={chk['watertight']}  {time.time() - t0:.1f}s")
     rep = verify.run(spec, L, V, T)
     elapsed = time.time() - t0
-    with open(os.path.join(out_dir, "report.md"), "w") as f:
+    with open(os.path.join(out_dir, "report.md"), "w", encoding="utf-8") as f:
         f.write(report_md(spec, chk, rep, screws, elapsed))
     summary = {
         "name": spec["name"], "elapsed_s": round(elapsed, 1), "voxel": spec["build"]["voxel"],
@@ -72,7 +72,7 @@ def build_to_dir(spec: dict, out_dir: str, *, previews: bool = True,
         "stations": [{k: v for k, v in s.items() if k != "segments"} for s in rep["stations"]],
         "between": [{"x": m["x"], "readouts": m["readouts"]} for m in rep["between"]],
     }
-    with open(os.path.join(out_dir, "report.json"), "w") as f:
+    with open(os.path.join(out_dir, "report.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=1)
     render.overlay(spec, L, rep, os.path.join(out_dir, "overlay.png"))
     render.spec_sheet(spec, L, os.path.join(out_dir, "spec_sheet.png"))

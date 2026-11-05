@@ -106,11 +106,11 @@ def main(argv=None) -> int:
     stale = []
     for path, text in ((TS_OUT, generate_ts()), (SCHEMA_OUT, generate_schema())):
         if a.check:
-            if not path.exists() or path.read_text() != text:
+            if not path.exists() or path.read_text(encoding="utf-8") != text:
                 stale.append(str(path.relative_to(ROOT)))
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text)
+            path.write_text(text, encoding="utf-8")
             print(f"wrote {path.relative_to(ROOT)}")
     if stale:
         print("stale generated files (run `python -m holdgen_server.codegen`): " + ", ".join(stale), file=sys.stderr)

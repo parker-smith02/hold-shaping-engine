@@ -28,16 +28,20 @@ class HoldStore:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def _path(self, name: str) -> Path:
+    @staticmethod
+    def check_name(name: str) -> None:
         if not NAME_RE.match(name):
             raise StoreError(f"invalid hold name {name!r}: use lowercase letters, digits, '_', '.', '-'")
+
+    def _path(self, name: str) -> Path:
+        self.check_name(name)
         return self.root / f"{name}.json"
 
     def list(self) -> list[dict]:
         out = []
         for p in sorted(self.root.glob("*.json")):
             try:
-                d = json.loads(p.read_text())
+                d = json.loads(p.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 continue
             out.append({"name": p.stem, "stations": len(d.get("stations", [])),
@@ -49,12 +53,12 @@ class HoldStore:
         p = self._path(name)
         if not p.exists():
             raise FileNotFoundError(name)
-        return json.loads(p.read_text())
+        return json.loads(p.read_text(encoding="utf-8"))
 
     def put(self, name: str, spec: dict) -> None:
         p = self._path(name)
         fd, tmp = tempfile.mkstemp(dir=self.root, prefix=f".{name}.", suffix=".tmp")
-        with os.fdopen(fd, "w") as f:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
             f.write(_fmt_points(spec))
         os.replace(tmp, p)                                   # atomic on POSIX and Windows
 
