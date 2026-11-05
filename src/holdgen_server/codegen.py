@@ -110,7 +110,7 @@ def main(argv=None) -> int:
                 stale.append(str(path.relative_to(ROOT)))
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text, encoding="utf-8")
+            path.write_text(text, encoding="utf-8", newline="\n")
             print(f"wrote {path.relative_to(ROOT)}")
     if stale:
         print("stale generated files (run `python -m holdgen_server.codegen`): " + ", ".join(stale), file=sys.stderr)

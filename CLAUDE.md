@@ -34,7 +34,9 @@ uv venv && uv pip install -e '.[server,dev]'        # Python 3.11+
 python -m playwright install chromium                # for e2e tests
 
 pytest -m "not slow"                                 # fast suite (~5 s)
-pytest                                               # + full SDF builds (~1-2 min)
+pytest                                               # + full SDF builds (~1-2 min) + e2e if web/dist exists
+pytest -m e2e                                        # editor in Chromium against web/dist (npm run build first)
+ruff check .
 (cd web && npm test && npm run typecheck && npm run build)
 
 python -m holdgen_server.codegen                     # regenerate types.gen.ts + JSON Schema after model changes

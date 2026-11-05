@@ -45,5 +45,5 @@ if __name__ == "__main__":
     text = render()
     if "--check" in sys.argv:
         sys.exit(0 if OUT.exists() and OUT.read_text(encoding="utf-8") == text else 1)
-    OUT.write_text(text, encoding="utf-8")
+    OUT.write_text(text, encoding="utf-8", newline="\n")
     print(f"wrote {OUT.relative_to(ROOT)}")
