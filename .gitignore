@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.holdgen/
+out/
+web/node_modules/
+web/dist/
+tools/research/ravage_v2/*.npy
+tools/research/ravage_v2/*.npz
+tools/research/ravage_v2/study/
+.DS_Store
