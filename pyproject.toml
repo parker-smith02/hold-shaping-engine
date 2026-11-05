@@ -1,0 +1,43 @@
+[project]
+name = "holdgen"
+version = "0.2.0"
+description = "Loft drawn cross-sections into 3D-printable climbing hold blanks."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "scikit-image>=0.22",
+  "matplotlib>=3.8",
+  "pillow>=10",
+  "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+server = ["fastapi>=0.115", "uvicorn[standard]>=0.30"]
+dev = ["pytest>=8", "hypothesis>=6.100", "httpx>=0.27", "playwright>=1.44", "ruff>=0.6"]
+
+[project.scripts]
+holdgen = "holdgen.cli:main"
+holdgen-server = "holdgen_server.__main__:main"
+
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/holdgen", "src/holdgen_server"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+  "slow: full SDF builds (tens of seconds each)",
+  "e2e: browser tests against a built web app (needs HOLDGEN_WEB_DIST or web/dist)",
+]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 120
+src = ["src", "tests"]

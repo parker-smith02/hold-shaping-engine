@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Holdgen Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand">Holdgen Studio <small>hold-spec/1</small></div>
+    <input type="text" id="holdName" class="name-input" aria-label="Hold name" spellcheck="false">
+    <span class="status" id="serverStatus"></span>
+    <span class="grow"></span>
+    <button id="btnUndo" title="Undo (Ctrl+Z)">Undo</button>
+    <button id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+    <button id="btnNew">New</button>
+    <button id="btnImport">Import</button>
+    <button id="btnExport">Export</button>
+    <button id="btnSave" class="primary" title="Save to holds/ (Ctrl+S)">Save</button>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="pane" aria-label="Front view">
+        <div class="pane-head"><div class="pane-title">Front <em>on the wall, loose guide</em></div><div class="tools" id="toolsFront"></div></div>
+        <div class="canvas-wrap h-front"><canvas id="cvFront" tabindex="0"></canvas><div class="hint" id="hintFront"></div></div>
+      </section>
+      <section class="pane" aria-label="Top view">
+        <div class="pane-head"><div class="pane-title">Top <em>looking down, wall at bottom</em></div><div class="tools" id="toolsTop"></div></div>
+        <div class="canvas-wrap h-top"><canvas id="cvTop" tabindex="0"></canvas><div class="hint" id="hintTop"></div></div>
+      </section>
+      <section class="pane" aria-label="Inspector">
+        <div class="pane-head"><div class="pane-title">Inspector</div></div>
+        <div class="pane-body">
+          <div class="insp" id="inspector"></div>
+          <hr class="rule">
+          <div class="row"><label for="wallAngle">Wall angle</label><input type="number" id="wallAngle" step="5" min="0" max="90"> <span class="muted">° overhang</span></div>
+          <div class="row">
+            <label for="frontStrength">Front view</label>
+            <span class="slider"><input type="range" id="frontStrength" min="0" max="1" step="0.05"><span class="mono" id="frontStrengthV"></span></span>
+            <label for="topStrength">Top view</label>
+            <span class="slider"><input type="range" id="topStrength" min="0" max="1" step="0.05"><span class="mono" id="topStrengthV"></span></span>
+          </div>
+          <div>
+            <div class="lbl"><label for="desc">Description for Claude</label></div>
+            <textarea id="desc" placeholder="Anything the drawings don't capture: style, reference holds, how it should feel, what to add between sections."></textarea>
+          </div>
+          <div class="issues" id="issues"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="pane" aria-label="Section editor">
+        <div class="pane-head"><div class="pane-title">Section <em id="secTitle"></em></div><div class="tools" id="toolsSection"></div></div>
+        <div class="pane-body tight"><div class="row"><span class="lbl">Stations</span><div class="chips" id="stationChips"></div></div></div>
+        <div class="canvas-wrap h-section"><canvas id="cvSection" tabindex="0"></canvas><div class="hint" id="hintSection"></div></div>
+        <div class="pane-body">
+          <div class="row" id="pointRow"></div>
+          <div class="readouts" id="readouts"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col col3">
+      <section class="pane" aria-label="3D preview">
+        <div class="pane-head">
+          <div class="pane-title">Preview <em id="sizeLabel"></em></div>
+          <div class="tools"><button id="btnHang">Hang on wall</button><button id="btnFit3d">Fit</button></div>
+        </div>
+        <div class="canvas-wrap h-3d"><canvas id="cv3d"></canvas><div class="hint">drag to orbit · right-drag to pan · wheel to zoom</div></div>
+      </section>
+      <section class="pane" aria-label="Build">
+        <div class="pane-head"><div class="pane-title">Build <em id="buildState"></em></div><div class="tools"><button id="btnBuild" class="primary">Build STL</button></div></div>
+        <div class="pane-body" id="buildBody"><p class="help">Runs the full SDF build (about 20–40 s) and checks the result against your sections.</p></div>
+      </section>
+      <section class="pane" aria-label="Readouts">
+        <div class="pane-head"><div class="pane-title">Readouts <em>information only</em></div></div>
+        <div class="pane-body scroll-x"><table class="tbl" id="roTable"></table></div>
+      </section>
+      <section class="pane" aria-label="Library">
+        <div class="pane-head"><div class="pane-title">Library <em id="libStatus"></em></div><div class="tools"><button id="btnLibRefresh">Refresh</button></div></div>
+        <div class="pane-body"><div class="lib-list" id="libList"></div></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" class="insp">
+    <h4 id="dlgTitle"></h4>
+    <p class="help" id="dlgHelp"></p>
+    <textarea id="dlgText" spellcheck="false"></textarea>
+    <div class="row">
+      <input type="file" id="dlgFile" accept=".json,application/json" hidden>
+      <button type="button" id="dlgPick">Choose file…</button>
+      <button type="button" id="dlgCopy">Copy</button>
+      <button type="button" id="dlgDownload">Download .json</button>
+      <span class="grow"></span>
+      <button value="cancel" formnovalidate>Close</button>
+      <button type="button" id="dlgOk" class="primary">Load</button>
+    </div>
+  </form>
+</dialog>
+<div class="toast" id="toast" hidden></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

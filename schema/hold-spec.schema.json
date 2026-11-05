@@ -1,0 +1,488 @@
+{
+  "$defs": {
+    "BuildSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "voxel": {
+          "default": 0.3,
+          "maximum": 2.0,
+          "minimum": 0.05,
+          "title": "Voxel",
+          "type": "number"
+        },
+        "smooth_sigma_vox": {
+          "default": 0.5,
+          "minimum": 0,
+          "title": "Smooth Sigma Vox",
+          "type": "number"
+        },
+        "sample_step": {
+          "default": 0.2,
+          "exclusiveMinimum": 0,
+          "maximum": 2.0,
+          "title": "Sample Step",
+          "type": "number"
+        }
+      },
+      "title": "BuildSettings",
+      "type": "object"
+    },
+    "Dent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "dent",
+          "title": "Type",
+          "type": "string"
+        },
+        "surface": {
+          "anyOf": [
+            {
+              "enum": [
+                "front",
+                "ledge"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "With a 2D center: 'front' = [x, y], 'ledge' = [x, z].",
+          "title": "Surface"
+        },
+        "center": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 2,
+          "title": "Center",
+          "type": "array"
+        },
+        "size": {
+          "default": [
+            8.0,
+            8.0,
+            4.0
+          ],
+          "description": "1-sigma radii along x, y, z (mm).",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Size",
+          "type": "array"
+        },
+        "depth": {
+          "description": "mm; positive removes material, negative adds.",
+          "title": "Depth",
+          "type": "number"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "center",
+        "depth"
+      ],
+      "title": "Dent",
+      "type": "object"
+    },
+    "EndCaps": {
+      "additionalProperties": false,
+      "properties": {
+        "radius": {
+          "default": 6.0,
+          "description": "Rounded end used where no view extends past the outermost station.",
+          "exclusiveMinimum": 0,
+          "title": "Radius",
+          "type": "number"
+        }
+      },
+      "title": "EndCaps",
+      "type": "object"
+    },
+    "Groove": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "groove",
+          "title": "Type",
+          "type": "string"
+        },
+        "surface": {
+          "anyOf": [
+            {
+              "enum": [
+                "front",
+                "ledge"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Surface"
+        },
+        "path": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "minItems": 2,
+          "title": "Path",
+          "type": "array"
+        },
+        "width": {
+          "default": 6.0,
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "number"
+        },
+        "depth": {
+          "title": "Depth",
+          "type": "number"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "path",
+        "depth"
+      ],
+      "title": "Groove",
+      "type": "object"
+    },
+    "Mounting": {
+      "additionalProperties": false,
+      "properties": {
+        "screws": {
+          "description": "Screw positions [x, y] on the wall.",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Screws",
+          "type": "array"
+        },
+        "hole_dia": {
+          "default": 4.8,
+          "exclusiveMinimum": 0,
+          "title": "Hole Dia",
+          "type": "number"
+        },
+        "countersink_dia": {
+          "default": 10.0,
+          "exclusiveMinimum": 0,
+          "title": "Countersink Dia",
+          "type": "number"
+        }
+      },
+      "title": "Mounting",
+      "type": "object"
+    },
+    "Note": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "$ref": "#/$defs/NoteAnchor"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "anchor"
+      ],
+      "title": "Note",
+      "type": "object"
+    },
+    "NoteAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "view": {
+          "enum": [
+            "front",
+            "top",
+            "section"
+          ],
+          "title": "View",
+          "type": "string"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "station_x": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Station X"
+        }
+      },
+      "required": [
+        "view",
+        "at"
+      ],
+      "title": "NoteAnchor",
+      "type": "object"
+    },
+    "Station": {
+      "additionalProperties": false,
+      "description": "A drawn cross-section. Authoritative: the built hold matches it within the voxel tolerance.",
+      "properties": {
+        "x": {
+          "description": "Position along the hold (mm).",
+          "title": "X",
+          "type": "number"
+        },
+        "points": {
+          "description": "Control points [z, y]. First = bottom root on the wall, then up the face, over the lip, down the ledge; last = ledge root on the wall.",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 3,
+          "title": "Points",
+          "type": "array"
+        },
+        "landmarks": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Landmark name -> point index. bottom_root/ledge_root are implicit. Same names, same order on every station.",
+          "title": "Landmarks",
+          "type": "object"
+        },
+        "corners": {
+          "description": "Point indices where the spline has a sharp corner.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Corners",
+          "type": "array"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "x",
+        "points"
+      ],
+      "title": "Station",
+      "type": "object"
+    },
+    "View": {
+      "additionalProperties": false,
+      "description": "A loose guide (front: [x, y] closed curve; top: [x, z], open with both ends on the wall, or closed).",
+      "properties": {
+        "points": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 3,
+          "title": "Points",
+          "type": "array"
+        },
+        "strength": {
+          "default": 0.5,
+          "description": "Influence between stations. Zero at every station regardless.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Strength",
+          "type": "number"
+        },
+        "corners": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Corners",
+          "type": "array"
+        }
+      },
+      "required": [
+        "points"
+      ],
+      "title": "View",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "hold-spec/1",
+      "default": "hold-spec/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "name": {
+      "pattern": "^[a-z0-9][a-z0-9_.-]{0,79}$",
+      "title": "Name",
+      "type": "string"
+    },
+    "units": {
+      "const": "mm",
+      "default": "mm",
+      "title": "Units",
+      "type": "string"
+    },
+    "wall_angle_deg": {
+      "default": 45.0,
+      "maximum": 90,
+      "minimum": 0,
+      "title": "Wall Angle Deg",
+      "type": "number"
+    },
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "stations": {
+      "items": {
+        "$ref": "#/$defs/Station"
+      },
+      "minItems": 2,
+      "title": "Stations",
+      "type": "array"
+    },
+    "front_view": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/View"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "top_view": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/View"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "end_caps": {
+      "$ref": "#/$defs/EndCaps"
+    },
+    "features": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "dent": "#/$defs/Dent",
+            "groove": "#/$defs/Groove"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/Dent"
+          },
+          {
+            "$ref": "#/$defs/Groove"
+          }
+        ]
+      },
+      "title": "Features",
+      "type": "array"
+    },
+    "mounting": {
+      "$ref": "#/$defs/Mounting"
+    },
+    "build": {
+      "$ref": "#/$defs/BuildSettings"
+    },
+    "notes": {
+      "items": {
+        "$ref": "#/$defs/Note"
+      },
+      "title": "Notes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "name",
+    "stations"
+  ],
+  "title": "hold-spec/1",
+  "type": "object",
+  "$id": "https://github.com/parker-smith02/hold-shaping-engine/schema/hold-spec.schema.json"
+}
