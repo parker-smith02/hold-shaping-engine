@@ -70,9 +70,10 @@ def test_preview_is_interactive_speed(ravage):
 
 
 def test_section_at_matches_loft_and_keeps_landmarks(ravage):
-    from holdgen.loft import Loft
-    from holdgen import curves
     from scipy.spatial import cKDTree
+
+    from holdgen import curves
+    from holdgen.loft import Loft
     st = fit.section_at(ravage, -40.0)
     assert set(st["landmarks"]) == {"face_out", "lip_apex"}
     P, _ = Loft(ravage).at([-40.0])

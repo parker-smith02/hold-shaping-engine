@@ -34,8 +34,8 @@ def _worker(poly):
 
 def _map_slices(polys, Zg, Yg):
     """slice_sdf over many slices, spread across CPU cores when available."""
-    import os
     import multiprocessing as mp
+    import os
     n = min(os.cpu_count() or 1, 8)
     if n < 2 or len(polys) < 16 or "fork" not in mp.get_all_start_methods():
         return [slice_sdf(p, Zg, Yg) for p in polys]

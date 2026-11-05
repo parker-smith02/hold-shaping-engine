@@ -1,9 +1,10 @@
 """Assemble the full hold SDF from a spec: loft -> SDF -> features -> back -> screws."""
 import time
+
 import numpy as np
 from scipy import ndimage
 
-from . import loft as loft_mod, sdf, features
+from . import features, loft as loft_mod, sdf
 
 
 def screws(S, axes, mounting):

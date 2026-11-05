@@ -41,3 +41,12 @@ addopts = "-ra"
 [tool.ruff]
 line-length = 120
 src = ["src", "tests"]
+extend-exclude = ["tools/research"]   # one-off research scripts
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+ignore = ["E702", "E731"]   # compact one-liners are deliberate in the geometry code
+
+[tool.ruff.lint.isort]
+known-first-party = ["holdgen", "holdgen_server", "conftest"]
+combine-as-imports = true
