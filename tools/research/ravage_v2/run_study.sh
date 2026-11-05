@@ -1,8 +1,8 @@
 #!/bin/bash
 # Station-count / guide-strength / control-point-density study for the Ravage rebuild.
 set -e
-cd "$(dirname "$0")"; export PYTHONPATH=../..
-REF=${REF:-../../reference/ravage_v2}
+cd "$(dirname "$0")"; export PYTHONPATH=../../../src
+REF=${REF:-.}   # run gen_v2.py and gen_v2_noscrews.py here first
 run() {  # name, extract args...
   name=$1; shift
   python3 extract.py $REF study/$name.json "$@" --name $name 2>study/$name.extract.log

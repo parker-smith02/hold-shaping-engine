@@ -4,6 +4,7 @@
 Prints surface deviation stats and writes a deviation map (front view + |dev| along x).
 """
 import json
+import os
 import sys
 
 import numpy as np
@@ -12,7 +13,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-sys.path.insert(0, __import__("os").path.join(__import__("os").path.dirname(__import__("os").path.abspath(__file__)), "..", ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "src"))
 from holdgen import mesh  # noqa: E402
 
 

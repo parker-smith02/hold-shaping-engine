@@ -8,13 +8,14 @@ loose front and top views. Screws are added back as mounting entries.
 """
 import argparse
 import json
+import os
 import sys
 
 import numpy as np
 from skimage.measure import find_contours
 from scipy.spatial import cKDTree
 
-sys.path.insert(0, __import__("os").path.join(__import__("os").path.dirname(__import__("os").path.abspath(__file__)), "..", ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "src"))
 from holdgen import curves  # noqa: E402
 
 TOL = 0.04   # mm, max distance of the extracted contour from the fitted spline
