@@ -36,3 +36,31 @@ def test_shutdown_kills_a_running_build(tmp_path, ravage):
     assert time.monotonic() - t0 < 6
     assert not any(p.is_alive() for p in procs)
     assert BuildJobs(tmp_path / "builds").get(job["id"])["state"] == "failed"
+
+
+def test_concurrent_status_writes_never_interleave(tmp_path):
+    """The done-callback thread and a restart sweep can write one status.json at once (seen in CI)."""
+    import threading
+
+    from holdgen_server.jobs import _read_status, _write_status
+
+    p = tmp_path / "status.json"
+    _write_status(p, {"n": -1})
+    errors = []
+
+    def writer(k):
+        try:
+            for i in range(200):
+                _write_status(p, {"n": k * 1000 + i, "pad": "x" * (50 * k)})
+                _read_status(p)
+        except Exception as e:                      # noqa: BLE001 - collected for the assert
+            errors.append(e)
+
+    threads = [threading.Thread(target=writer, args=(k,)) for k in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not errors, errors
+    assert "n" in _read_status(p)
+    assert [q.name for q in tmp_path.iterdir()] == ["status.json"]      # no tmp files left behind
