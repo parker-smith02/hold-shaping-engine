@@ -242,6 +242,30 @@ def test_starts_empty_and_builds_up_from_a_drawn_section(blank):
     assert _js(blank, "preview.state.mesh.indices.length / 3") > 1000
 
 
+def test_a_stale_draft_never_leaves_the_editor_blank(browser, server):
+    """A draft saved before the view format changed (closed front loop) blanked every tile."""
+    legacy = json.loads((ROOT / "holds" / "ravage_example.json").read_text(encoding="utf-8"))
+    fv = legacy["front_view"]
+    legacy["front_view"] = {"points": fv["upper"] + fv["lower"][::-1][1:-1]}
+    ctx, pg, errors = _open(browser, f"{server['url']}/")
+    pg.evaluate("(d) => localStorage.setItem('holdgen.draft.v1', d)", json.dumps(legacy))
+    pg.reload()
+    pg.wait_for_function("() => window.holdgen && window.holdgen.preview.state.data", timeout=15_000)
+    assert _js(pg, "store.spec.stations.length") == 5                  # converted, not discarded
+    assert "upper" in _js(pg, "store.spec.front_view")
+    assert pg.locator("#toolsFront button").count() > 3
+    # and one that can't be read at all starts empty, keeps a copy, and says so
+    pg.evaluate("() => localStorage.setItem('holdgen.draft.v1', JSON.stringify({stations: [], front_view: 7}))")
+    pg.reload()
+    pg.wait_for_function("() => window.holdgen && window.holdgen.preview.state.hint")
+    assert _js(pg, "store.spec.stations.length") == 0
+    assert pg.evaluate("() => localStorage.getItem('holdgen.draft.v1.unreadable')")
+    assert "couldn't be opened" in pg.text_content("#toast")
+    ctx.close()
+    # the browser logs the server's 422 for the unconvertible draft; anything else is a real error
+    assert not [e for e in errors if "status of 422" not in e], errors
+
+
 def test_escape_cancels_a_new_station(blank):
     _tool(blank, "toolsFront", "+ Station")
     blank.mouse.click(*_screen(blank, "front", 0, 40))

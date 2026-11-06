@@ -8,6 +8,7 @@ import type { Ctx } from "./panes/pane";
 import { SectionPane } from "./panes/section";
 import { TopPane } from "./panes/top";
 import { defaultFrontView, defaultTopView, removeCurvePoint, removePoint, sortStations, toggleCorner } from "./spec/edit";
+import { loadable } from "./spec/load";
 import { EMPTY, slug } from "./spec/model";
 import { PreviewSync } from "./state/preview";
 import { Store, type PaneName } from "./state/store";
@@ -47,7 +48,20 @@ async function initialSpec(): Promise<HoldSpec> {
       toast(`holds/${want}.json not found; opened your last draft instead.`);
     }
   }
-  return readDraft() ?? structuredClone(EMPTY);
+  const draft = readDraft();
+  if (draft) {
+    const s = await loadable(draft);
+    if (s) return s;
+    // A draft this version can't open must never leave the editor blank: set it aside and start empty.
+    try {
+      localStorage.setItem(`${DRAFT_KEY}.unreadable`, JSON.stringify(draft));
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* storage full or disabled */
+    }
+    toast("Your saved draft couldn't be opened (an older format?), so the editor started empty. The draft is kept in this browser's storage.", 8000);
+  }
+  return structuredClone(EMPTY);
 }
 
 /** Why the spec can't be previewed yet, or null when it can. Such specs are never sent to the server. */
@@ -396,4 +410,17 @@ async function main(): Promise<void> {
   (window as unknown as { holdgen: unknown }).holdgen = { store, preview, panes, view3d }; // for debugging and e2e tests
 }
 
-void main();
+/** A failed start must be visible: blank tiles with a quiet console are impossible to diagnose. */
+function showFatal(e: unknown): void {
+  console.error(e);
+  const box = document.createElement("pre");
+  box.style.cssText = "margin:24px;padding:16px;white-space:pre-wrap;border:1px solid var(--bad,#c00);color:var(--ink,#000);background:var(--panel,#fff);";
+  box.textContent = `Holdgen Studio couldn't start.
+
+${e instanceof Error ? `${e.name}: ${e.message}` : String(e)}
+
+If this keeps happening, clear this site's data (localStorage "holdgen.draft.v1") and reload.`;
+  document.body.prepend(box);
+}
+
+main().catch(showFatal);

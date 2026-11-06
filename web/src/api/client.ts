@@ -42,6 +42,8 @@ export const api = {
   sectionAt: (spec: HoldSpec, x: number) =>
     call<SectionAtResponse>("POST", "/api/section-at", { spec, x }).then((r): Station => r.station),
   listHolds: () => call<HoldList>("GET", "/api/holds").then((r) => r.holds),
+  /** The spec in the current hold-spec/1 shape (older drafts, files and imports are converted). */
+  migrate: (spec: HoldSpec) => call<HoldSpec>("POST", "/api/migrate", { spec }),
   getHold: (name: string) => call<HoldSpec>("GET", `/api/holds/${encodeURIComponent(name)}`),
   putHold: (name: string, spec: HoldSpec) => call<SaveResponse>("PUT", `/api/holds/${encodeURIComponent(name)}`, spec),
   deleteHold: (name: string) => call<void>("DELETE", `/api/holds/${encodeURIComponent(name)}`),

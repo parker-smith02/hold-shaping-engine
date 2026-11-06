@@ -104,10 +104,20 @@ def create_app(holds_dir: Path, builds_dir: Path, web_dist: Optional[Path] = Non
     def holds_list():
         return {"holds": store.list()}
 
+    @app.post("/api/migrate", responses=ERRORS)
+    def migrate(body: M.SpecRequest) -> dict[str, Any]:
+        """A spec in the current hold-spec/1 shape (older files, drafts and imports are converted)."""
+        model, issues = schema.validate(body.spec)
+        if model is None:
+            raise ApiError(422, "spec does not match hold-spec/1", issues)
+        return model.dump()
+
     @app.get("/api/holds/{name}", responses=ERRORS)
     def hold_get(name: str) -> dict[str, Any]:
         try:
-            return store.get(name)
+            raw = store.get(name)
+            model, _ = schema.validate(raw)       # older files load in the current shape
+            return model.dump() if model is not None else raw
         except FileNotFoundError:
             raise ApiError(404, "no such hold")
         except StoreError as e:

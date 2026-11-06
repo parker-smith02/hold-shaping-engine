@@ -1,6 +1,6 @@
 // Import / export of hold-spec/1 JSON.
-import type { HoldSpec } from "../api/types.gen";
 import { $ } from "../dom";
+import { loadable } from "../spec/load";
 import type { Store } from "../state/store";
 
 export function setupDialog(store: Store, toast: (m: string) => void): { open(mode: "import" | "export"): void } {
@@ -40,17 +40,19 @@ export function setupDialog(store: Store, toast: (m: string) => void): { open(mo
     a.click();
     URL.revokeObjectURL(a.href);
   });
-  $("#dlgOk").addEventListener("click", () => {
+  $("#dlgOk").addEventListener("click", async () => {
     if (mode !== "import") return;
+    let raw: unknown;
     try {
-      const s = JSON.parse(text.value) as HoldSpec;
-      if (!Array.isArray(s.stations)) throw new Error("no stations");
-      store.load(s);
-      dlg.close();
-      toast(`Loaded ${s.name}.`);
+      raw = JSON.parse(text.value);
     } catch {
-      toast("That isn't a hold spec. Check it's JSON with a stations list.");
+      return toast("That isn't JSON.");
     }
+    const s = await loadable(raw);
+    if (!s) return toast("That isn't a hold spec. Check it's JSON with a stations list.");
+    store.load(s);
+    dlg.close();
+    toast(`Loaded ${s.name}.`);
   });
   return { open };
 }

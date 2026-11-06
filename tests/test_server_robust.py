@@ -49,12 +49,12 @@ def plausible_spec(draw):
     n = draw(st.integers(3, 9))
     s = {"schema": "hold-spec/1", "name": "fuzz", "stations": [draw(plausible_station(x, n)) for x in xs]}
     lo_x, hi_x = xs[0] - draw(st.floats(-10, 40)), xs[-1] + draw(st.floats(-10, 40))
-    if draw(st.booleans()) and lo_x < hi_x:
+    if draw(st.booleans()) and hi_x - lo_x > 1:
         tl, tr = [lo_x, draw(st.floats(0, 80))], [hi_x, draw(st.floats(0, 80))]
         inner = lambda: sorted(draw(st.lists(st.tuples(st.floats(lo_x + 0.1, hi_x - 0.1), st.floats(-20, 120)).map(list),
                                              max_size=4)))
         s["front_view"] = {"upper": [tl, *inner(), tr], "lower": [tl, *inner(), tr], "strength": draw(st.floats(0, 1))}
-    if draw(st.booleans()) and lo_x < hi_x:
+    if draw(st.booleans()) and hi_x - lo_x > 1:
         inner = sorted(draw(st.lists(st.tuples(st.floats(lo_x + 0.1, hi_x - 0.1), st.floats(0, 50)).map(list),
                                      min_size=1, max_size=5)))
         s["top_view"] = {"points": [[lo_x, 0.0], *inner, [hi_x, 0.0]], "strength": draw(st.floats(0, 1))}
