@@ -29,9 +29,18 @@ cd web && npm install && cd ..
 
 ## Use
 
+`holdgen` and `holdgen-server` are installed into the project's `.venv`, so activate it first in each new
+terminal (or prefix commands with `uv run`, e.g. `uv run holdgen-server`):
+
 ```sh
+.venv\Scripts\Activate.ps1             # Windows PowerShell
+source .venv/bin/activate               # macOS / Linux / Git Bash: .venv/Scripts/activate
+```
+
+```sh
+(cd web && npm run build)               # once, so the server can serve the editor at :8000
 holdgen-server                          # API on :8000 (serves web/dist if built)
-cd web && npm run dev                   # editor on :5173, proxies /api to :8000
+cd web && npm run dev                   # or: live-reload editor on :5173, proxies /api to :8000
 
 holdgen validate holds/*.json
 holdgen build holds/ravage_example.json -o out/ravage   # STL + report.md + overlay/preview/spec-sheet PNGs
