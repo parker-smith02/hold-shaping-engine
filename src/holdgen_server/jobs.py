@@ -9,7 +9,9 @@ import concurrent.futures as cf
 import datetime as dt
 import json
 import multiprocessing as mp
+import os
 import re
+import tempfile
 import threading
 import time
 import traceback
@@ -24,7 +26,7 @@ def _now() -> str:
 JOB_ID_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 
 
-def _retry(fn, tries: int = 50, delay: float = 0.01):
+def _retry(fn, tries: int = 200, delay: float = 0.01):
     """Windows can't replace a file another process has open (and a reader can catch the swap):
     status.json is written by the worker while the server polls it, so retry briefly."""
     for i in range(tries):
@@ -41,9 +43,17 @@ def _read_status(path: Path) -> dict:
 
 
 def _write_status(path: Path, st: dict) -> None:
-    tmp = path.with_name(f"{path.name}.{mp.current_process().pid}.tmp")   # worker and server never share a tmp
-    tmp.write_text(json.dumps(st, indent=1), encoding="utf-8")
-    _retry(lambda: tmp.replace(path))
+    # A unique tmp per write: the worker, the pool's done-callback thread and a restart sweep can all
+    # write the same status.json, and a shared tmp name interleaves their writes.
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    tmp = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(st, indent=1))
+        _retry(lambda: tmp.replace(path))
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def _patch_status(path: Path, **fields) -> None:
