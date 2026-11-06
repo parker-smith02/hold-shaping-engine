@@ -18,6 +18,12 @@ def fit_controls(poly: np.ndarray, tol: float = 0.12, must=(), max_points: int =
     Returns (sorted sample indices, max error)."""
     n = len(poly)
     sel = sorted({0, n - 1, *[int(m) for m in must]})
+    if len(sel) < 3 and n >= 3:                     # a section needs >= 3 points: seed the farthest from the chord
+        a, b = poly[0], poly[-1]
+        ab = b - a
+        d = np.abs(ab[0] * (poly[:, 1] - a[1]) - ab[1] * (poly[:, 0] - a[0])) / max(np.hypot(*ab), 1e-9)
+        d[[0, -1]] = -1
+        sel = sorted(set(sel) | {int(np.argmax(d))})
     err = np.inf
     for _ in range(max_points):
         dense, _ = curves.eval_open(poly[sel], step=0.05)

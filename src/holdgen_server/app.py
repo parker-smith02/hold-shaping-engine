@@ -91,11 +91,14 @@ def create_app(holds_dir: Path, builds_dir: Path, web_dist: Optional[Path] = Non
 
     @app.post("/api/section-at", response_model=M.SectionAtResponse, responses=ERRORS)
     def section_at(body: M.SectionAtRequest):
-        spec, _ = _engine_spec(body.spec)
+        spec, issues = _engine_spec(body.spec)
         try:
-            return {"station": fit.section_at(spec, body.x)}
-        except ValueError as e:
-            raise ApiError(422, str(e))
+            station = fit.section_at(spec, body.x)
+        except ValueError as e:                    # x outside the hold
+            raise ApiError(422, str(e)) from None
+        except Exception as e:                     # report geometry failures with the spec's issues
+            raise ApiError(422, f"section-at failed: {type(e).__name__}: {e}", issues) from None
+        return {"station": station}
 
     @app.get("/api/holds", response_model=M.HoldList)
     def holds_list():
