@@ -35,8 +35,9 @@ holdgen-server                            # http://127.0.0.1:8000 (API docs at /
 
 1. **Get the spec.** Either the user saved it from the editor (`holds/<name>.json`), or you help them draft it.
    From photos or verbal specs, sketch stations as `[z, y]` points (wall on the left, z out of the wall, y up),
-   with landmarks `face_out` and `lip_apex`. Then have the user check and adjust them in the editor;
-   the drawing is theirs.
+   with landmarks `face_out` and `lip_apex`. Outlines are open curves: `front_view` has `upper` and `lower` edges
+   from the left tip to the right tip; `top_view` runs from the wall to the wall. Then have the user check and
+   adjust everything in the editor; the drawing is theirs.
 2. **Validate:** `holdgen validate holds/<name>.json`. Fix errors *with* the user; don't guess at their drawing.
 3. **Read intent.** Read the spec's `description`, each station's `note` and the pinned `notes`. Add whatever the
    sections don't capture as `features` (e.g. a thumb dent in the front view, a diagonal flute as a groove).

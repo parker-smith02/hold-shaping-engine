@@ -24,7 +24,8 @@ Current status, what has and hasn't been verified, and the next tasks: **docs/HA
 ## Frame and units
 
 mm. x along the hold, y up the wall, z out of the wall; the back is z = 0. Section points are `[z, y]`
-(drawn with the wall on the left). Front view points `[x, y]`; top view `[x, z]`.
+(drawn with the wall on the left). Front view: `upper` and `lower` edges of `[x, y]` points, each from the
+left tip to the right tip (shared tips). Top view: `[x, z]` points from the wall (z = 0) to the wall.
 
 ## Commands
 

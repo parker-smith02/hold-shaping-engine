@@ -1,15 +1,12 @@
 // Top view (x, z looking down, wall at the bottom): loose plan outline, stations, ledge features.
-import { evalClosed, evalOpen, nearestSegment, type Vec2 } from "../geometry/curves";
-import { sortStations, stationExtent } from "../spec/edit";
+import { evalOpen, type Vec2 } from "../geometry/curves";
+import { insertCurvePoint, moveTopPoint, nearestOnCurve, sortStations, stationExtent } from "../spec/edit";
 import type { Hit } from "../state/store";
 import { tok } from "../theme";
 import { drawFeatures, hitFeature } from "./features";
 import { Pane, type DragHandler } from "./pane";
 
 const snapX = (x: number) => Math.round(x * 2) / 2;
-
-/** An open top view has both ends on the wall (z = 0); the wall closes it. */
-export const topIsOpen = (P: Vec2[]) => P.length >= 2 && Math.abs(P[0][1]) <= 0.05 && Math.abs(P[P.length - 1][1]) <= 0.05;
 
 export class TopPane extends Pane {
   pendingGroove: Vec2[] | null = null;
@@ -21,7 +18,7 @@ export class TopPane extends Pane {
   private hit(w: Vec2): Hit | null {
     const { spec } = this.app.store;
     const P = spec.top_view?.points ?? [];
-    for (let i = 0; i < P.length; i++) if (this.near(P[i], w)) return { kind: "outline", i };
+    for (const i of [0, P.length - 1, ...P.keys()]) if (P[i] && this.near(P[i], w, i === 0 || i === P.length - 1 ? 11 : 9)) return { kind: "outline", i };
     const f = hitFeature(this, spec.features, "ledge", w);
     if (f) return f;
     for (let i = 0; i < spec.stations.length; i++) {
@@ -42,10 +39,8 @@ export class TopPane extends Pane {
       return {
         move: (p) => store.mutate((s) => {
           const pz = Math.max(0, p[1]);
-          if (h.kind === "outline") {
-            const P = s.top_view!.points, open = topIsOpen(P), end = open && (h.i === 0 || h.i === P.length - 1);
-            P[h.i] = [p[0], end ? 0 : pz];
-          } else if (h.kind === "station") s.stations[h.i].x = snapX(p[0]);
+          if (h.kind === "outline") moveTopPoint(s.top_view!, h.i, p);
+          else if (h.kind === "station") s.stations[h.i].x = snapX(p[0]);
           else if (h.kind === "dent") (s.features[h.i] as { center: number[] }).center = [p[0], pz];
           else if (h.kind === "groove") (s.features[h.i] as { path: number[][] }).path[h.j] = [p[0], pz];
         }, { commit: false }),
@@ -55,18 +50,6 @@ export class TopPane extends Pane {
           store.mutate(() => {});
         },
       };
-    }
-    if (t === "outline") {
-      store.mutate((s) => {
-        s.top_view ??= { points: [], strength: 0.5, corners: [] };
-        const P = s.top_view.points;
-        if (P.length < 2) P.push([w[0], 0]);
-        else {
-          const r = nearestSegment(P, w, false);
-          P.splice(Math.max(1, Math.min(P.length - 1, r.index)), 0, [w[0], z]);
-        }
-      });
-      return null;
     }
     if (t === "station") {
       void this.app.addStationAt(snapX(w[0]));
@@ -86,8 +69,19 @@ export class TopPane extends Pane {
     return null;
   }
 
-  protected override onDblClick(): void {
-    if (this.app.store.tools.top === "groove" && this.pendingGroove) this.finishGroove();
+  protected override onDblClick(w: Vec2): void {
+    const store = this.app.store;
+    if (store.tools.top === "groove" && this.pendingGroove) {
+      this.finishGroove();
+      return;
+    }
+    const tv = store.spec.top_view;
+    if (store.tools.top !== "select" || !tv) return;
+    const r = nearestOnCurve(tv.points, tv.corners, w);
+    if (r.dist * this.sc > 10) return;
+    let at = r.index;
+    store.mutate((s) => (at = insertCurvePoint(s.top_view!.points, r.index, r.point, s.top_view!.corners)));
+    store.select({ top: { kind: "outline", i: at } });
   }
 
   finishGroove(): void {
@@ -112,10 +106,11 @@ export class TopPane extends Pane {
       x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z1 = Math.max(z1, p[1]);
     });
     const d = this.app.preview.state.data;
-    if (d) {
+    if (d && spec.stations.length) {
       x0 = Math.min(x0, d.loft.x_min);
       x1 = Math.max(x1, d.loft.x_max);
     }
+    if (!isFinite(x0)) [x0, x1] = [-60, 60]; // nothing drawn yet
     this.fitTo(x0, x1, -2, z1, 0.1);
   }
 
@@ -129,7 +124,7 @@ export class TopPane extends Pane {
     c.fillStyle = tok("--wall");
     c.fillRect(0, wallY, this.W, Math.max(4, 3 * this.sc));
     const d = this.app.preview.state.data;
-    if (d) {
+    if (d && spec.stations.length) {
       const { x, z_hi } = d.extents;
       if (x.length) {
         this.path([[x[0], 0], ...x.map((v, i) => [v, z_hi[i]]), [x[x.length - 1], 0]], true);
@@ -138,16 +133,18 @@ export class TopPane extends Pane {
       }
     }
     const tv = spec.top_view;
-    if (tv && tv.points.length) {
-      if (tv.points.length >= 3) {
-        this.path(topIsOpen(tv.points) ? evalOpen(tv.points, tv.corners, 0.25).dense : evalClosed(tv.points, tv.corners, 0.25), !topIsOpen(tv.points));
-        c.setLineDash([6, 4]);
-        c.strokeStyle = ink;
-        c.lineWidth = 1.3;
-        c.stroke();
-        c.setLineDash([]);
-      }
-      tv.points.forEach((q, i) => this.dot(q, 4, sel.top?.kind === "outline" && sel.top.i === i ? acc : tok("--panel"), ink, tv.corners.includes(i)));
+    if (tv) {
+      this.path(evalOpen(tv.points, tv.corners, 0.25).dense);
+      c.setLineDash([6, 4]);
+      c.strokeStyle = ink;
+      c.lineWidth = 1.3;
+      c.stroke();
+      c.setLineDash([]);
+      const n = tv.points.length, on = (i: number) => sel.top?.kind === "outline" && sel.top.i === i;
+      tv.points.forEach((q, i) => {
+        const end = i === 0 || i === n - 1;
+        this.dot(q, end ? 6 : 4, on(i) ? acc : end ? ink : tok("--panel"), ink, end || tv.corners.includes(i));
+      });
     }
     spec.stations.forEach((st, i) => {
       const on = i === sel.station;
@@ -157,6 +154,17 @@ export class TopPane extends Pane {
       c.stroke();
     });
     drawFeatures(this, spec.features, "ledge", sel.top);
+    const pend = this.app.store.newStation;
+    if (pend !== null) {
+      this.path([[pend, 0], [pend, 200]]);
+      c.setLineDash([3, 4]);
+      c.strokeStyle = acc;
+      c.lineWidth = 2;
+      c.stroke();
+      c.setLineDash([]);
+    }
+    if (pend !== null) this.message(`Drawing the station at x = ${pend} in the section editor.`);
+    else if (!spec.stations.length) this.message("Empty hold. Pick + Station, then click here where the first section goes.");
     if (this.pendingGroove) {
       this.path(this.pendingGroove);
       c.strokeStyle = tok("--accent2");

@@ -268,4 +268,29 @@ export abstract class Pane {
     c.font = font ?? `11px ${tok("--font-data")}`;
     c.fillText(s, sx + dx, sy + dy);
   }
+
+  /** Instructions for an empty state, word-wrapped near the top of the canvas (screen space). */
+  message(s: string): void {
+    const c = this.ctx, maxW = Math.max(120, this.W - 48), lines: string[] = [];
+    c.font = `13px ${tok("--font-display")}`;
+    let line = "";
+    for (const word of s.split(" ")) {
+      const next = line ? `${line} ${word}` : word;
+      if (c.measureText(next).width > maxW && line) {
+        lines.push(line);
+        line = word;
+      } else line = next;
+    }
+    if (line) lines.push(line);
+    const pad = 10, lh = 18, w = Math.min(maxW, Math.max(...lines.map((l) => c.measureText(l).width))) + 2 * pad;
+    const x = (this.W - w) / 2, y = 24;
+    c.fillStyle = tok("--panel");
+    c.globalAlpha = 0.92;
+    c.fillRect(x, y, w, lines.length * lh + 2 * pad - 4);
+    c.globalAlpha = 1;
+    c.fillStyle = tok("--ink");
+    c.textBaseline = "top";
+    lines.forEach((l, i) => c.fillText(l, x + pad, y + pad + i * lh));
+    c.textBaseline = "alphabetic";
+  }
 }

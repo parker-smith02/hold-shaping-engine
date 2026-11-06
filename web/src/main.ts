@@ -7,8 +7,8 @@ import { FrontPane } from "./panes/front";
 import type { Ctx } from "./panes/pane";
 import { SectionPane } from "./panes/section";
 import { TopPane } from "./panes/top";
-import { removePoint, sortStations, toggleCorner } from "./spec/edit";
-import { BLANK, slug } from "./spec/model";
+import { defaultFrontView, defaultTopView, removeCurvePoint, removePoint, sortStations, toggleCorner } from "./spec/edit";
+import { EMPTY, slug } from "./spec/model";
 import { PreviewSync } from "./state/preview";
 import { Store, type PaneName } from "./state/store";
 import { onThemeChange } from "./theme";
@@ -47,18 +47,19 @@ async function initialSpec(): Promise<HoldSpec> {
       toast(`holds/${want}.json not found; opened your last draft instead.`);
     }
   }
-  const draft = readDraft();
-  if (draft) return draft;
-  try {
-    return await api.getHold("ravage_example");
-  } catch {
-    return structuredClone(BLANK);
-  }
+  return readDraft() ?? structuredClone(EMPTY);
+}
+
+/** Why the spec can't be previewed yet, or null when it can. Such specs are never sent to the server. */
+function previewHint(s: HoldSpec): string | null {
+  if (!s.stations.length) return "Nothing drawn yet. Pick + Station in the front or top view to start.";
+  if (s.stations.length < 2) return "One station so far. Add a second (+ Station) to see the hold in 3D.";
+  return null;
 }
 
 async function main(): Promise<void> {
   const store = new Store(await initialSpec());
-  const preview = new PreviewSync(() => store.toSpec());
+  const preview = new PreviewSync(() => store.toSpec(), previewHint);
 
   let drawQueued = false;
   const requestDraw = () => {
@@ -75,9 +76,17 @@ async function main(): Promise<void> {
   const addStationAt = async (x: number) => {
     const spec = store.spec;
     if (spec.stations.some((s) => Math.abs(s.x - x) < 1)) return toast("A station already sits within 1 mm of that spot.");
+    store.setTool("front", "select");
+    store.setTool("top", "select");
+    if (!spec.stations.length) {
+      section.startNew(x);
+      toast(`Draw the section at x = ${x}: click the wall where the face starts, up the face and over the lip, then the wall again.`, 6000);
+      return;
+    }
     const loft = preview.state.data?.loft;
     let st;
-    if (loft && x >= loft.x_min && x <= loft.x_max && !preview.state.stale) {
+    const fromLoft = !!loft && x >= loft.x_min && x <= loft.x_max && !preview.state.stale;
+    if (fromLoft) {
       try {
         const s = await api.sectionAt(store.toSpec(), x);
         st = { x: s.x, points: s.points, landmarks: s.landmarks ?? {}, corners: [], note: "" };
@@ -94,9 +103,9 @@ async function main(): Promise<void> {
       store.sel.station = sortStations(s, st);
       store.sel.point = null;
     });
-    store.setTool("front", "select");
-    store.setTool("top", "select");
-    toast(`Added a station at x = ${x}, shaped from the current loft.`);
+    toast(fromLoft
+      ? `Added a station at x = ${x}, shaped from the current loft.`
+      : `Added a station at x = ${x}, copied from its nearest neighbour. Reshape it in the section editor.`);
   };
 
   const ctx: Ctx = { store, preview, toast, addStationAt, requestDraw };
@@ -135,6 +144,20 @@ async function main(): Promise<void> {
   };
   const actions: Record<string, (pane: PaneName) => void> = {
     image: pickImage,
+    outline: (pane) => {
+      if (pane === "section") return;
+      if (!store.spec[pane === "front" ? "front_view" : "top_view"]) {
+        store.mutate((s) => {
+          if (pane === "front") s.front_view = defaultFrontView(s);
+          else s.top_view = defaultTopView(s);
+        });
+        panes[pane].fitView();
+      }
+      store.setTool(pane, "select");
+      toast(pane === "front"
+        ? "Front outline: drag a tip (square) to set the length, drag points to shape the upper and lower edges, double-click an edge to add a point."
+        : "Top outline: its ends stay on the wall; drag them to set the length, drag points to shape it, double-click it to add a point.", 6000);
+    },
     fit: (pane) => panes[pane].fitView(),
     hang: () => {
       section.setHung(!section.hung);
@@ -142,17 +165,16 @@ async function main(): Promise<void> {
     },
   };
   const toolbars: Record<PaneName, Btn[]> = {
-    front: [["select", "Select"], ["outline", "Outline"], ["station", "+ Station"], ["screw", "Screw"], ["dent", "Dent"], ["groove", "Groove"], ["note", "Note"], ["!image", "Image…", "Trace over a reference photo"], ["!fit", "Fit"]],
-    top: [["select", "Select"], ["outline", "Outline"], ["station", "+ Station"], ["dent", "Ledge dent"], ["groove", "Ledge groove"], ["!image", "Image…", "Trace over a reference photo"], ["!fit", "Fit"]],
+    front: [["select", "Select"], ["!outline", "Outline", "Add the front outline (or show how to edit it)"], ["station", "+ Station"], ["screw", "Screw"], ["dent", "Dent"], ["groove", "Groove"], ["note", "Note"], ["!image", "Image…", "Trace over a reference photo"], ["!fit", "Fit"]],
+    top: [["select", "Select"], ["!outline", "Outline", "Add the top outline (or show how to edit it)"], ["station", "+ Station"], ["dent", "Ledge dent"], ["groove", "Ledge groove"], ["!image", "Image…", "Trace over a reference photo"], ["!fit", "Fit"]],
     section: [["select", "Select"], ["draw", "Redraw", "Clear this station and draw it again"], ["!hang", "Hang", "Tilt the section to the wall angle"], ["!image", "Image…", "Trace over a reference photo"], ["!fit", "Fit"]],
   };
   const hints: Record<string, string> = {
     select: "drag points · double-click a curve to add a point · drag empty space to pan · wheel to zoom",
-    outline: "click to add outline points; each slots into the nearest segment",
-    station: "click to add a station there, shaped from the current loft",
+    station: "click where the new station goes",
     screw: "click to place a screw", dent: "click to place a dent", groove: "click points; double-click or Enter to finish", note: "click to pin a note",
     image: "drag to move the reference image · wheel to scale it",
-    draw: "click from the bottom root up the face, over the lip, then click at the wall to finish",
+    draw: "click the wall where the face starts, then up the face and over the lip; click the wall again to finish · Esc cancels",
   };
   for (const pane of ["front", "top", "section"] as PaneName[]) {
     const el = $(`#tools${pane[0].toUpperCase()}${pane.slice(1)}`);
@@ -167,7 +189,7 @@ async function main(): Promise<void> {
         const cur = store.tools[pane];
         store.setTool(pane, (cur === id ? "select" : id) as never);
         front.pendingGroove = top.pendingGroove = null;
-        section.drawing = null;
+        section.cancelDrawing();
       });
       el.append(b);
     }
@@ -220,6 +242,7 @@ async function main(): Promise<void> {
     const status = $("#serverStatus");
     status.textContent = s.error && !s.data ? "server unreachable" : s.latencyMs !== null ? `preview ${s.latencyMs} ms` : "";
     status.classList.toggle("bad", !!s.error && !s.data);
+    if (s.hint) $("#sizeLabel").textContent = "";
     if (s.data) {
       const [a, b] = [s.data.bbox.min, s.data.bbox.max];
       $("#sizeLabel").textContent = `${(b[0] - a[0]).toFixed(0)} × ${(b[1] - a[1]).toFixed(0)} × ${(b[2] - a[2]).toFixed(0)} mm${s.stale ? " · out of date" : ""}`;
@@ -246,20 +269,29 @@ async function main(): Promise<void> {
   $("#btnSave").addEventListener("click", () => void library.save());
   $("#btnImport").addEventListener("click", () => dialog.open("import"));
   $("#btnExport").addEventListener("click", () => dialog.open("export"));
-  $("#btnNew").addEventListener("click", async () => {
-    const b = $<HTMLButtonElement>("#btnNew");
+  $("#btnReset").addEventListener("click", () => {
+    const b = $<HTMLButtonElement>("#btnReset");
     if (!b.dataset.armed) {
       b.dataset.armed = "1";
-      b.textContent = "New: click again for a blank hold";
+      b.textContent = "Reset: click again to clear everything";
       setTimeout(() => {
         delete b.dataset.armed;
-        b.textContent = "New";
+        b.textContent = "Reset";
       }, 3000);
       return;
     }
     delete b.dataset.armed;
-    b.textContent = "New";
-    store.load(structuredClone(BLANK));
+    b.textContent = "Reset";
+    front.pendingGroove = top.pendingGroove = null;
+    section.cancelDrawing();
+    (["front", "top", "section"] as PaneName[]).forEach((p) => store.setTool(p, "select"));
+    store.load(structuredClone(EMPTY));
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* drafts are a convenience */
+    }
+    toast("Cleared to an empty hold. Undo brings the previous one back.");
   });
   $<HTMLInputElement>("#holdName").addEventListener("change", (e) => {
     const el = e.target as HTMLInputElement;
@@ -312,8 +344,9 @@ async function main(): Promise<void> {
     if (e.key === "Escape") {
       if (front.pendingGroove) front.finishGroove();
       if (top.pendingGroove) top.finishGroove();
-      section.drawing = null;
+      section.cancelDrawing();
       (["front", "top", "section"] as PaneName[]).forEach((p) => store.setTool(p, "select"));
+      requestDraw();
       return;
     }
     if (e.key === "Enter") {
@@ -322,7 +355,7 @@ async function main(): Promise<void> {
       return;
     }
     const active = document.activeElement;
-    if ((e.key === "Delete" || e.key === "Backspace") && active === section.cv && store.sel.point !== null) {
+    if ((e.key === "Delete" || e.key === "Backspace") && active === section.cv && store.sel.point !== null && store.station) {
       e.preventDefault();
       const res = removePoint(store.station, store.sel.point);
       if (!res.ok) return toast(res.reason);
@@ -334,10 +367,18 @@ async function main(): Promise<void> {
       const s = active === front.cv ? store.sel.front : store.sel.top;
       if (!s || s.kind === "station") return;
       e.preventDefault();
+      if (s.kind === "outline") {
+        const fv = store.spec.front_view, tv = store.spec.top_view;
+        const res = active === front.cv
+          ? fv ? removeCurvePoint(fv[s.edge ?? "upper"], s.i) : null
+          : tv ? removeCurvePoint(tv.points, s.i, tv.corners) : null;
+        if (res && !res.ok) return toast(res.reason);
+        store.select({ front: null, top: null });
+        store.mutate(() => {});
+        return;
+      }
       store.mutate((spec) => {
-        const v = active === front.cv ? spec.front_view : spec.top_view;
-        if (s.kind === "outline" && v && v.points.length > 3) v.points.splice(s.i, 1);
-        else if (s.kind === "screw") spec.mounting.screws.splice(s.i, 1);
+        if (s.kind === "screw") spec.mounting.screws.splice(s.i, 1);
         else if (s.kind === "dent" || s.kind === "groove") spec.features.splice(s.i, 1);
         else if (s.kind === "note") spec.notes.splice(s.i, 1);
       });

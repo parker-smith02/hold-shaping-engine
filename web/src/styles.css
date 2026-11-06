@@ -90,6 +90,7 @@ table.tbl th:first-child, table.tbl td:first-child { text-align: left; }
 .issue { font-size: 13px; padding: 5px 8px; border-left: 3px solid var(--bad); background: var(--bg); }
 .issue.warning { border-left-color: var(--warn); }
 .issue.ok { border-left-color: var(--good); }
+.issue.info { border-left-color: var(--accent2); }
 .insp { display: flex; flex-direction: column; gap: 8px; }
 .insp h4 { margin: 0; font-family: var(--font-display); font-size: 14px; font-weight: 700; }
 .muted { color: var(--muted); }

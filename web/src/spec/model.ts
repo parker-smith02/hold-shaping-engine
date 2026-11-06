@@ -1,13 +1,20 @@
 // Editor-side view of hold-spec/1: the generated types with every optional field filled in,
 // so editing code never has to null-check defaults. `toSpec` produces the file format again.
-import type { BuildSettings, Dent, EndCaps, Groove, HoldSpec, Mounting, Note, Station, View } from "../api/types.gen";
+import type { BuildSettings, Dent, EndCaps, FrontView, Groove, HoldSpec, Mounting, Note, Station, TopView } from "../api/types.gen";
 import type { Vec2 } from "../geometry/curves";
 
 export type Feature = Dent | Groove;
 export interface EStation extends Required<Omit<Station, "points">> {
   points: Vec2[];
 }
-export interface EView extends Required<Omit<View, "points">> {
+/** Front view: upper and lower edge, each from the left tip to the right tip (shared end points). */
+export interface EFront {
+  upper: Vec2[];
+  lower: Vec2[];
+  strength: number;
+}
+/** Top view: open curve from the wall (z = 0) at the left end to the wall at the right end. */
+export interface ETop extends Required<Omit<TopView, "points">> {
   points: Vec2[];
 }
 export interface EditableSpec {
@@ -17,8 +24,8 @@ export interface EditableSpec {
   wall_angle_deg: number;
   description: string;
   stations: EStation[];
-  front_view: EView | null;
-  top_view: EView | null;
+  front_view: EFront | null;
+  top_view: ETop | null;
   end_caps: Required<EndCaps>;
   features: Feature[];
   mounting: Required<Mounting>;
@@ -28,8 +35,11 @@ export interface EditableSpec {
 
 export const ROOTS = ["bottom_root", "ledge_root"] as const;
 
-const view = (v: View | null | undefined): EView | null =>
-  v ? { points: v.points.map((p) => [p[0], p[1]] as Vec2), strength: v.strength ?? 0.5, corners: [...(v.corners ?? [])] } : null;
+const pts = (P: readonly (readonly number[])[]): Vec2[] => P.map((p) => [p[0], p[1]] as Vec2);
+const front = (v: FrontView | null | undefined): EFront | null =>
+  v ? { upper: pts(v.upper), lower: pts(v.lower), strength: v.strength ?? 0.5 } : null;
+const top = (v: TopView | null | undefined): ETop | null =>
+  v ? { points: pts(v.points), strength: v.strength ?? 0.5, corners: [...(v.corners ?? [])] } : null;
 
 export function fromSpec(s: HoldSpec): EditableSpec {
   const stations = s.stations
@@ -48,8 +58,8 @@ export function fromSpec(s: HoldSpec): EditableSpec {
     wall_angle_deg: s.wall_angle_deg ?? 45,
     description: s.description ?? "",
     stations,
-    front_view: view(s.front_view),
-    top_view: view(s.top_view),
+    front_view: front(s.front_view),
+    top_view: top(s.top_view),
     end_caps: { radius: s.end_caps?.radius ?? 6 },
     features: structuredClone(s.features ?? []),
     mounting: {
@@ -74,7 +84,7 @@ export function toSpec(e: EditableSpec): HoldSpec {
     wall_angle_deg: e.wall_angle_deg,
     description: e.description,
     stations: e.stations.map((t) => ({ x: r2(t.x), points: rp(t.points) as Vec2[], landmarks: { ...t.landmarks }, corners: [...t.corners], note: t.note })),
-    front_view: e.front_view && { ...e.front_view, points: rp(e.front_view.points) as Vec2[] },
+    front_view: e.front_view && { upper: rp(e.front_view.upper) as Vec2[], lower: rp(e.front_view.lower) as Vec2[], strength: e.front_view.strength },
     top_view: e.top_view && { ...e.top_view, points: rp(e.top_view.points) as Vec2[] },
     end_caps: { ...e.end_caps },
     features: e.features.map((f) => (f.type === "dent" ? { ...f, center: f.center.map(r2) } : { ...f, path: rp(f.path) })),
@@ -89,12 +99,10 @@ export function slug(s: string): string {
   return v || "hold";
 }
 
-export const BLANK: HoldSpec = {
+/** A new hold: nothing drawn yet. The first station is drawn in the section editor. */
+export const EMPTY: HoldSpec = {
   schema: "hold-spec/1",
   name: "new_hold",
   wall_angle_deg: 45,
-  stations: [
-    { x: -30, points: [[0, 10], [7, 20], [12, 32], [13.5, 40], [11, 45], [6, 43.5], [0, 42]], landmarks: { lip_apex: 4 } },
-    { x: 30, points: [[0, 10], [7, 20], [12, 32], [13.5, 40], [11, 45], [6, 43.5], [0, 42]], landmarks: { lip_apex: 4 } },
-  ],
+  stations: [],
 };

@@ -26,7 +26,8 @@ every suite against the real packages, fixed what broke, and worked through the 
 | FastAPI app + `test_server.py` | Pass. Fixed: a bad hold name in `PUT /api/holds/{name}` now returns 400, not 422. |
 | Build jobs | Pass, plus `test_jobs.py`. Hardened for Windows (status-file replace/read retries); shutdown now kills a running build; a restart marks interrupted jobs failed. |
 | `web/` typecheck, vitest, `vite build` | Pass against the real `@types/three` 0.170 and vitest 2. three.js is split into its own chunk. |
-| Editor in a browser | Checked by hand and covered by `tests/test_e2e.py` (Playwright): load + preview, drag a section point (preview follows, ~85 ms round trip), undo, add a station from the front view, save, both themes, build from the editor down to the STL download. Lights retuned for three r155+ physically based intensities. |
+| Editor in a browser | Checked by hand and covered by `tests/test_e2e.py` (Playwright): starting from an empty hold (draw the first section, add a second, preview appears), load + preview, drag a section point (preview follows, ~85 ms round trip), undo, add a station from the front view, outlines (default around the stations, drag a tip or wall end, double-click to add, Delete to remove), Reset + undo, save, both themes, build from the editor down to the STL download. |
+| API robustness | `tests/test_server_robust.py` fuzzes validate/preview/section-at with plausible and arbitrary specs (~70% reach the loft): no 5xx. Found and fixed a 500 in section-at on near-flat sections. |
 | CI (`.github/workflows/ci.yml`) | Written. **Not yet run on GitHub**: it triggers on PRs and pushes to `main`, and this branch has no open PR (PR #1 is already merged). |
 | SessionStart hook | `.claude/settings.json` → `scripts/session-start.sh`. Syntax and the local no-op path were checked. **The cloud install path hasn't run yet.** |
 | Skill rewrite | Draft at `docs/skill/climbing-hold-blank-generator/SKILL.md`. Needs the user to upload it on claude.ai; there was no propose-skills tool in the session. |
@@ -46,6 +47,14 @@ Other changes from the local session:
 1. **Run CI**: open a PR from this branch to `main` and fix anything Linux-specific.
 2. **Upload the skill draft** on claude.ai, replacing the old `climbing-hold-blank-generator`.
 3. **Confirm the SessionStart hook** in a cloud session (deps install, venv on PATH).
+
+## Spec change: open outline curves
+
+`front_view` is `{upper, lower, strength}`: two open curves from the left tip to the right tip, sharing the tips
+(corners in the loft). `top_view.points` runs from the wall to the wall (first and last z = 0). Old closed loops
+still load (a before-validator splits them at the tips); `holds/` and the fixtures are stored in the new form.
+The editor starts empty (no starter shape), never sends a spec with fewer than two stations, and has a Reset
+button (undoable) in place of New.
 
 ## Known issues and follow-ups
 
