@@ -46,6 +46,17 @@ holdgen validate holds/*.json
 holdgen build holds/ravage_example.json -o out/ravage   # STL + report.md + overlay/preview/spec-sheet PNGs
 ```
 
+## Editor workflow
+
+1. The editor opens empty. In the front or top view pick **+ Station** and click where the first section goes;
+   draw it in the section pane (click the wall, up the face, over the lip, back to the wall). Add a second station
+   and the 3D preview appears.
+2. Optionally add **Outline** in the front and top views: loose guides that shape the hold *between* stations and
+   toward the tips (drag the square tips/ends, drag points, double-click a curve to add a point). They never move a
+   drawn station.
+3. Add screws, dents/grooves and notes, **Save** to `holds/<name>.json`, then **Build STL**. **Reset** clears to an
+   empty hold (undoable).
+
 ## Tests
 
 ```sh
