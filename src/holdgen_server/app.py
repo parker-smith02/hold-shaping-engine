@@ -91,20 +91,33 @@ def create_app(holds_dir: Path, builds_dir: Path, web_dist: Optional[Path] = Non
 
     @app.post("/api/section-at", response_model=M.SectionAtResponse, responses=ERRORS)
     def section_at(body: M.SectionAtRequest):
-        spec, _ = _engine_spec(body.spec)
+        spec, issues = _engine_spec(body.spec)
         try:
-            return {"station": fit.section_at(spec, body.x)}
-        except ValueError as e:
-            raise ApiError(422, str(e))
+            station = fit.section_at(spec, body.x)
+        except ValueError as e:                    # x outside the hold
+            raise ApiError(422, str(e)) from None
+        except Exception as e:                     # report geometry failures with the spec's issues
+            raise ApiError(422, f"section-at failed: {type(e).__name__}: {e}", issues) from None
+        return {"station": station}
 
     @app.get("/api/holds", response_model=M.HoldList)
     def holds_list():
         return {"holds": store.list()}
 
+    @app.post("/api/migrate", responses=ERRORS)
+    def migrate(body: M.SpecRequest) -> dict[str, Any]:
+        """A spec in the current hold-spec/1 shape (older files, drafts and imports are converted)."""
+        model, issues = schema.validate(body.spec)
+        if model is None:
+            raise ApiError(422, "spec does not match hold-spec/1", issues)
+        return model.dump()
+
     @app.get("/api/holds/{name}", responses=ERRORS)
     def hold_get(name: str) -> dict[str, Any]:
         try:
-            return store.get(name)
+            raw = store.get(name)
+            model, _ = schema.validate(raw)       # older files load in the current shape
+            return model.dump() if model is not None else raw
         except FileNotFoundError:
             raise ApiError(404, "no such hold")
         except StoreError as e:

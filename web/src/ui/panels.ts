@@ -2,7 +2,7 @@
 import type { Issue, ReadoutRow, Readouts } from "../api/types.gen";
 import { $, armed, h } from "../dom";
 import {
-  isRoot, landmarkNames, placeLandmarkEverywhere, removePoint, setLandmark, sortStations, toggleCorner,
+  isRoot, landmarkNames, placeLandmarkEverywhere, removeCurvePoint, removePoint, setLandmark, sortStations, toggleCorner,
 } from "../spec/edit";
 import { slug } from "../spec/model";
 import type { PreviewState } from "../state/preview";
@@ -46,7 +46,7 @@ export function renderPointRow(ctx: PanelCtx): void {
   const note = h("input", { type: "text", id: "stNote", placeholder: "note for this station", value: st.note });
   note.style.flex = "1 1 160px";
   note.addEventListener("change", () => store.mutate((s) => (s.stations[store.sel.station].note = note.value)));
-  const del = h("button", { type: "button", class: "danger", text: "Delete station", disabled: store.spec.stations.length <= 2 });
+  const del = h("button", { type: "button", class: "danger", text: "Delete station" });
   armed(del, "Delete station", () => store.mutate((s) => void s.stations.splice(store.sel.station, 1)));
   el.append(h("span", { class: "lbl", text: "Station x" }), x, note, del);
 
@@ -127,6 +127,7 @@ export function renderIssues(preview: PreviewState): void {
   const el = $("#issues");
   const list: Issue[] = preview.issues;
   const items: HTMLElement[] = [];
+  if (preview.hint) items.push(h("div", { class: "issue info", text: preview.hint }));
   if (preview.error && !list.length) items.push(h("div", { class: "issue", text: preview.error }));
   for (const i of list) items.push(h("div", { class: `issue ${i.level}`, text: i.message }));
   if (!items.length && preview.data) items.push(h("div", { class: "issue ok", text: "Spec is valid and ready to build." }));
@@ -157,17 +158,29 @@ export function renderInspector(ctx: PanelCtx): void {
   }
   const spec = store.spec;
   if (s.kind === "outline") {
-    const v = which === "front" ? spec.front_view : spec.top_view;
-    if (!v) return;
+    const fv = spec.front_view, tv = spec.top_view;
+    const P = which === "front" ? fv?.[s.edge ?? "upper"] : tv?.points;
+    if (!P || !P[s.i]) return;
+    const end = s.i === 0 || s.i === P.length - 1;
+    const title = which === "front"
+      ? end ? `Front view, ${s.i === 0 ? "left" : "right"} tip` : `Front view, ${s.edge ?? "upper"} edge, point ${s.i}`
+      : end ? `Top view, ${s.i === 0 ? "left" : "right"} end (on the wall)` : `Top view, point ${s.i}`;
+    const rm = h("button", { type: "button", class: "danger", text: "Remove point", disabled: end });
+    rm.addEventListener("click", () => {
+      const res = removeCurvePoint(P, s.i, which === "top" ? tv!.corners : undefined);
+      if (!res.ok) return ctx.toast(res.reason);
+      store.select({ front: null, top: null });
+      store.mutate(() => {});
+    });
+    const corner = which === "top" && !end
+      ? h("button", { type: "button", text: tv!.corners.includes(s.i) ? "Corner ✓" : "Corner", on: { click: () => store.mutate(() => { tv!.corners = tv!.corners.includes(s.i) ? tv!.corners.filter((c) => c !== s.i) : [...tv!.corners, s.i].sort((a, b) => a - b); }) } })
+      : null;
     el.replaceChildren(
-      h("h4", { text: `${which === "front" ? "Front" : "Top"} view, point ${s.i}` }),
-      h("div", { class: "row" },
-        remove("Remove point", () => {
-          if (v.points.length > 3) v.points.splice(s.i, 1);
-          else ctx.toast("An outline needs at least three points; clear the view instead.");
-        }),
-        h("button", { type: "button", text: v.corners.includes(s.i) ? "Corner ✓" : "Corner", on: { click: () => store.mutate(() => { v.corners = v.corners.includes(s.i) ? v.corners.filter((c) => c !== s.i) : [...v.corners, s.i]; }) } }),
-        remove("Clear this view", () => { if (which === "front") spec.front_view = null; else spec.top_view = null; })));
+      h("h4", { text: title }),
+      h("p", { class: "help", text: which === "front"
+        ? "Drag the tips to set the hold's length and the points to shape its upper and lower edge. Double-click an edge to add a point."
+        : "The ends slide along the wall. Drag the points to shape the hold seen from above; double-click the curve to add a point." }),
+      h("div", { class: "row" }, rm, corner, remove("Clear this view", () => { if (which === "front") spec.front_view = null; else spec.top_view = null; })));
   } else if (s.kind === "station") {
     el.replaceChildren(h("h4", { text: `Station x = ${r2(spec.stations[s.i]?.x ?? 0)}` }), h("p", { class: "help", text: "Drag the line to move it. Edit its shape in the section editor." }));
   } else if (s.kind === "screw") {

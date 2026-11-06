@@ -22,6 +22,30 @@ def client(tmp_path):
         yield c
 
 
+# A hold file as the editor wrote it before the views became open curves (closed front loop, and a top
+# outline that doesn't end on the wall).
+LEGACY_VIEWS = {
+    "front_view": {"points": [[-50, 30], [-20, 55], [0, 60], [30, 50], [50, 30], [20, 8], [0, 5], [-30, 10]]},
+    "top_view": {"points": [[-50, 5], [0, 25], [50, 5], [0, 2]]},
+}
+
+
+def test_old_files_open_in_the_current_shape(client, tmp_path):
+    spec = client.get("/api/holds/ravage_example").json()
+    legacy = {**spec, **LEGACY_VIEWS}
+    r = client.post("/api/migrate", json={"spec": legacy})
+    assert r.status_code == 200
+    fv, tv = r.json()["front_view"], r.json()["top_view"]
+    assert fv["upper"][0] == fv["lower"][0] and "points" not in fv
+    assert tv["points"][0][1] == 0 and tv["points"][-1][1] == 0
+    assert client.post("/api/migrate", json={"spec": {"stations": "nope"}}).status_code == 422
+    # a file saved in the old shape (written straight to disk, as git checkouts and older versions do)
+    import json
+    (client.app.state.store.root / "old_one.json").write_text(json.dumps({**legacy, "name": "old_one"}), encoding="utf-8")
+    got = client.get("/api/holds/old_one").json()
+    assert "upper" in got["front_view"] and got["name"] == "old_one"
+
+
 def test_health_schema_and_docs(client):
     assert client.get("/api/health").json()["ok"] is True
     assert client.get("/api/schema").json()["title"] == "hold-spec/1"

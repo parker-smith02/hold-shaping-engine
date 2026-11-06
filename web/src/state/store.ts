@@ -4,12 +4,12 @@ import type { HoldSpec } from "../api/types.gen";
 import { fromSpec, toSpec, type EditableSpec } from "../spec/model";
 
 export type PaneName = "front" | "top" | "section";
-export type FrontTool = "select" | "outline" | "station" | "screw" | "dent" | "groove" | "note" | "image";
-export type TopTool = "select" | "outline" | "station" | "dent" | "groove" | "image";
+export type FrontTool = "select" | "station" | "screw" | "dent" | "groove" | "note" | "image";
+export type TopTool = "select" | "station" | "dent" | "groove" | "image";
 export type SectionTool = "select" | "draw" | "image";
 
 export type Hit =
-  | { kind: "outline"; i: number }
+  | { kind: "outline"; i: number; edge?: "upper" | "lower" } // edge: front view only
   | { kind: "station"; i: number }
   | { kind: "screw"; i: number }
   | { kind: "dent"; i: number }
@@ -32,6 +32,8 @@ export class Store {
   spec: EditableSpec;
   sel: Selection = { station: 0, point: null, front: null, top: null };
   tools: { front: FrontTool; top: TopTool; section: SectionTool } = { front: "select", top: "select", section: "select" };
+  /** x of a station being drawn from scratch in the section editor; it joins the spec when finished. */
+  newStation: number | null = null;
   private past: string[] = [];
   private future: string[] = [];
   private committed: string;
@@ -115,6 +117,7 @@ export class Store {
   load(s: HoldSpec): void {
     this.spec = fromSpec(s);
     this.sel = { station: Math.floor(this.spec.stations.length / 2), point: null, front: null, top: null };
+    this.newStation = null;
     this.commit();
     this.emit("load", "spec", "selection");
   }
@@ -123,6 +126,11 @@ export class Store {
     Object.assign(this.sel, patch);
     this.clampSelection();
     this.emit("selection");
+  }
+
+  setNewStation(x: number | null): void {
+    this.newStation = x;
+    this.emit("tools");
   }
 
   setTool<P extends PaneName>(pane: P, tool: Store["tools"][P]): void {

@@ -15,10 +15,16 @@ def perturbed_views(raw: dict, seed: int, amp: float, strength_f: float, strengt
     """The spec with its front/top views wobbled and stretched by a seeded random field."""
     r = copy.deepcopy(raw)
     rng = np.random.default_rng(seed)
-    f = np.array(r["front_view"]["points"])
-    f[:, 1] += amp * rng.standard_normal(len(f))
-    f[:, 0] *= 1 + 0.1 * rng.uniform(-1, 1)
-    r["front_view"] = {"points": f.tolist(), "strength": strength_f}
+    sx = 1 + 0.1 * rng.uniform(-1, 1)
+    tips = amp * rng.standard_normal(2)                       # the edges share their tips: move them together
+    edges = {}
+    for k in ("upper", "lower"):
+        e = np.array(r["front_view"][k])
+        e[1:-1, 1] += amp * rng.standard_normal(len(e) - 2)
+        e[[0, -1], 1] += tips
+        e[:, 0] *= sx
+        edges[k] = e.tolist()
+    r["front_view"] = {**edges, "strength": strength_f}
     t = np.array(r["top_view"]["points"])
     t[1:-1, 1] = np.maximum(0.5, t[1:-1, 1] + amp * 0.5 * rng.standard_normal(len(t) - 2))
     r["top_view"] = {"points": t.tolist(), "strength": strength_t}

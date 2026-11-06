@@ -117,6 +117,64 @@
       "title": "EndCaps",
       "type": "object"
     },
+    "FrontView": {
+      "additionalProperties": false,
+      "description": "Loose guide seen from the front ([x, y]): the hold's upper and lower edge, each an open curve\nfrom the left tip to the right tip. The two edges share their end points (the tips).",
+      "properties": {
+        "upper": {
+          "description": "Upper edge [x, y], left tip to right tip.",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 2,
+          "title": "Upper",
+          "type": "array"
+        },
+        "lower": {
+          "description": "Lower edge [x, y], left tip to right tip.",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 2,
+          "title": "Lower",
+          "type": "array"
+        },
+        "strength": {
+          "default": 0.5,
+          "description": "Influence between stations. Zero at every station regardless.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Strength",
+          "type": "number"
+        }
+      },
+      "required": [
+        "upper",
+        "lower"
+      ],
+      "title": "FrontView",
+      "type": "object"
+    },
     "Groove": {
       "additionalProperties": false,
       "properties": {
@@ -334,9 +392,9 @@
       "title": "Station",
       "type": "object"
     },
-    "View": {
+    "TopView": {
       "additionalProperties": false,
-      "description": "A loose guide (front: [x, y] closed curve; top: [x, z], open with both ends on the wall, or closed).",
+      "description": "Loose guide seen from above ([x, z]): an open curve from the wall at the left end, out over the\nhold, back to the wall at the right end. First and last points sit on the wall (z = 0).",
       "properties": {
         "points": {
           "items": {
@@ -375,7 +433,7 @@
       "required": [
         "points"
       ],
-      "title": "View",
+      "title": "TopView",
       "type": "object"
     }
   },
@@ -421,7 +479,7 @@
     "front_view": {
       "anyOf": [
         {
-          "$ref": "#/$defs/View"
+          "$ref": "#/$defs/FrontView"
         },
         {
           "type": "null"
@@ -432,7 +490,7 @@
     "top_view": {
       "anyOf": [
         {
-          "$ref": "#/$defs/View"
+          "$ref": "#/$defs/TopView"
         },
         {
           "type": "null"

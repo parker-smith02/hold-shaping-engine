@@ -66,21 +66,34 @@ export class View3D {
     this.renderer.render(this.scene, this.camera);
   }
 
-  update(state: PreviewState, mounting: { hole_dia: number; countersink_dia: number }): void {
-    if (!state.mesh || !state.data) {
-      this.render();
-      return;
-    }
+  /** Nothing to show (e.g. after a reset): remove everything and frame the next hold when it arrives. */
+  clear(): void {
+    this.removeGeometry();
+    this.fitted = false;
+  }
+
+  private removeGeometry(): void {
     if (this.hold) {
       this.root.remove(this.hold);
       this.hold.geometry.dispose();
+      this.hold = null;
     }
     if (this.wall) {
       this.root.remove(this.wall);
       this.wall.geometry.dispose();
+      this.wall = null;
     }
     this.screws.children.forEach((m: THREE.Object3D) => (m as THREE.Mesh).geometry.dispose());
     this.screws.clear();
+  }
+
+  update(state: PreviewState, mounting: { hole_dia: number; countersink_dia: number }): void {
+    if (!state.mesh || !state.data) {
+      if (!state.stale) this.clear(); // an error keeps the last good hold (shown stale); "nothing yet" clears it
+      this.render();
+      return;
+    }
+    this.removeGeometry();
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(state.mesh.positions, 3));

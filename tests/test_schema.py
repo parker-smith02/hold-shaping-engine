@@ -85,3 +85,40 @@ def test_generated_files_are_current():
     assert r.returncode == 0, r.stderr
     g = subprocess.run([sys.executable, "tools/gen_golden.py", "--check"], cwd=ROOT, capture_output=True, text=True)
     assert g.returncode == 0, "run: python tools/gen_golden.py"
+
+
+FRONT = {"upper": [[-50, 30], [0, 60], [50, 30]], "lower": [[-50, 30], [0, 5], [50, 30]]}
+TOP = {"points": [[-50, 0], [0, 20], [50, 0]]}
+
+
+@pytest.mark.parametrize("view, edit, code", [
+    ("front_view", lambda v: v["lower"].__setitem__(0, [-50, 25]), "front_view.tips"),
+    ("front_view", lambda v: v.update(upper=[[50, 30], [0, 60], [-50, 30]], lower=[[50, 30], [0, 5], [-50, 30]]),
+     "front_view.direction"),
+    ("front_view", lambda v: v["upper"].__setitem__(1, [70, 60]), "front_view.outside_tips"),
+    ("top_view", lambda v: v["points"].__setitem__(-1, [50, 4]), "top_view.ends_off_wall"),
+    ("top_view", lambda v: v["points"].__setitem__(1, [0, -2]), "top_view.behind_wall"),
+    ("top_view", lambda v: v.update(points=[[50, 0], [0, 20], [-50, 0]]), "top_view.direction"),
+])
+def test_view_rules(simple_raw, view, edit, code):
+    raw = {**copy.deepcopy(simple_raw), "front_view": copy.deepcopy(FRONT), "top_view": copy.deepcopy(TOP)}
+    assert not {c for c in codes(raw) if c.startswith(("front_view", "top_view"))}
+    edit(raw[view])
+    assert code in codes(raw)
+
+
+def test_legacy_closed_front_loop_splits_at_the_tips(simple_raw):
+    loop = [[-50, 30], [-20, 55], [0, 60], [30, 50], [50, 30], [20, 8], [0, 5], [-30, 10]]
+    model, issues = schema.validate({**simple_raw, "front_view": {"points": loop, "strength": 0.3, "corners": [2]}})
+    assert model is not None and not [i for i in issues if i.level == "error"], issues
+    fv = model.front_view
+    assert [list(p) for p in fv.upper] == [[-50, 30], [-20, 55], [0, 60], [30, 50], [50, 30]]
+    assert [list(p) for p in fv.lower] == [[-50, 30], [-30, 10], [0, 5], [20, 8], [50, 30]]
+    assert fv.strength == 0.3
+
+
+def test_legacy_closed_top_loop_keeps_its_outer_chain_on_the_wall(simple_raw):
+    loop = [[-50, 5], [0, 25], [50, 5], [0, 2]]
+    model, issues = schema.validate({**simple_raw, "top_view": {"points": loop}})
+    assert model is not None and not [i for i in issues if i.level == "error"], issues
+    assert [list(p) for p in model.top_view.points] == [[-50, 0], [0, 25], [50, 0]]

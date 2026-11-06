@@ -24,14 +24,15 @@ Current status, what has and hasn't been verified, and the next tasks: **docs/HA
 ## Frame and units
 
 mm. x along the hold, y up the wall, z out of the wall; the back is z = 0. Section points are `[z, y]`
-(drawn with the wall on the left). Front view points `[x, y]`; top view `[x, z]`.
+(drawn with the wall on the left). Front view: `upper` and `lower` edges of `[x, y]` points, each from the
+left tip to the right tip (shared tips). Top view: `[x, z]` points from the wall (z = 0) to the wall.
 
 ## Commands
 
 ```sh
-uv venv && uv pip install -e '.[server,dev]'        # Python 3.11+
+uv venv && uv pip install -e '.[server,dev]'        # Python 3.11+; then activate .venv (or prefix with `uv run`)
 (cd web && npm install)
-python -m playwright install chromium                # for e2e tests
+python -m playwright install chromium                # for e2e tests; rerun after any `uv sync`
 
 pytest -m "not slow"                                 # fast suite (~5 s)
 pytest                                               # + full SDF builds (~1-2 min) + e2e if web/dist exists
@@ -45,6 +46,7 @@ python tools/gen_golden.py                           # regenerate curves.golden.
 holdgen-server                                       # API :8000 (docs at /api/docs); serves web/dist if built
 (cd web && npm run dev)                              # editor :5173, proxies /api -> :8000
 holdgen build holds/<name>.json -o out/<name>        # STL + report.md + overlay.png + preview.png
+python tools/ui_walkthrough.py . out/walkthrough     # drive the built editor from empty, screenshot each step
 ```
 
 ## Building a hold for the user
@@ -60,4 +62,9 @@ holdgen build holds/<name>.json -o out/<name>        # STL + report.md + overlay
 
 - Tests: pytest + hypothesis for invariants; slow builds marked `@pytest.mark.slow`; vitest for `web/`.
 - `holds/*.json` are written by `HoldStore` (one point per line) so diffs stay readable.
-- Commit on a branch; the default branch is `main`.
+- Editor changes need an e2e test (`tests/test_e2e.py`, fixtures `page` / `blank`); startup, `localStorage` and
+  spec-shape changes especially, since each test starts in a fresh browser. Specs from older versions (drafts,
+  files, imports) must keep opening: migration lives in `schema.py` and is served by `/api/migrate`.
+- The server must never answer an editor request with a 5xx (`tests/test_server_robust.py` fuzzes it).
+- Read and write text as UTF-8 with LF (Windows default codepage corrupts specs).
+- Commit on a branch; the default branch is `main`. Machine-specific setup notes are in docs/HANDOFF.md.

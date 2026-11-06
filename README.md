@@ -29,13 +29,33 @@ cd web && npm install && cd ..
 
 ## Use
 
+`holdgen` and `holdgen-server` are installed into the project's `.venv`, so activate it first in each new
+terminal (or prefix commands with `uv run`, e.g. `uv run holdgen-server`):
+
 ```sh
+.venv\Scripts\Activate.ps1             # Windows PowerShell
+source .venv/bin/activate               # macOS / Linux / Git Bash: .venv/Scripts/activate
+```
+
+```sh
+(cd web && npm run build)               # once, so the server can serve the editor at :8000
 holdgen-server                          # API on :8000 (serves web/dist if built)
-cd web && npm run dev                   # editor on :5173, proxies /api to :8000
+cd web && npm run dev                   # or: live-reload editor on :5173, proxies /api to :8000
 
 holdgen validate holds/*.json
 holdgen build holds/ravage_example.json -o out/ravage   # STL + report.md + overlay/preview/spec-sheet PNGs
 ```
+
+## Editor workflow
+
+1. The editor opens empty. In the front or top view pick **+ Station** and click where the first section goes;
+   draw it in the section pane (click the wall, up the face, over the lip, back to the wall). Add a second station
+   and the 3D preview appears.
+2. Optionally add **Outline** in the front and top views: loose guides that shape the hold *between* stations and
+   toward the tips (drag the square tips/ends, drag points, double-click a curve to add a point). They never move a
+   drawn station.
+3. Add screws, dents/grooves and notes, **Save** to `holds/<name>.json`, then **Build STL**. **Reset** clears to an
+   empty hold (undoable).
 
 ## Tests
 

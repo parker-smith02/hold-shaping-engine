@@ -17,12 +17,18 @@ from scipy.ndimage import gaussian_filter1d
 from . import curves
 
 
-def _view_poly(view, wall_axis_closes):
-    pts = np.asarray(view["points"], float)
-    if wall_axis_closes and abs(pts[0, 1]) <= 0.05 and abs(pts[-1, 1]) <= 0.05:
-        dense, _ = curves.eval_open(pts, view.get("corners", []))
-        return dense                    # implicitly closed along the wall line
-    return curves.eval_closed(pts, view.get("corners", []))
+def _front_poly(view):
+    """Closed outline from the upper and lower edges: upper left to right, then lower back to the left
+    tip. The tips are corners (each edge is its own spline)."""
+    up, _ = curves.eval_open(view["upper"])
+    lo, _ = curves.eval_open(view["lower"])
+    return np.vstack([up, lo[::-1][1:-1]])
+
+
+def _top_poly(view):
+    """Open curve from wall to wall; closed implicitly along the wall line (z = 0)."""
+    dense, _ = curves.eval_open(view["points"], view.get("corners", []))
+    return dense
 
 
 def _extents(poly, xq):
@@ -100,8 +106,8 @@ class Loft:
         self.landmark_index = dict(zip(names, np.concatenate([[0], np.cumsum(np.array(counts) - 1)])))
         self._pchip = PchipInterpolator(self.xs, self.M.reshape(len(st), -1), axis=0)
 
-        self.front = _view_poly(spec["front_view"], False) if spec["front_view"] else None
-        self.top = _view_poly(spec["top_view"], True) if spec["top_view"] else None
+        self.front = _front_poly(spec["front_view"]) if spec["front_view"] else None
+        self.top = _top_poly(spec["top_view"]) if spec["top_view"] else None
         self._prep_guides()
         self._prep_tips()
 

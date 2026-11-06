@@ -52,6 +52,16 @@ export interface Extents {
   z_hi: number[];
 }
 
+/** Loose guide seen from the front ([x, y]): the hold's upper and lower edge, each an open curve from the left tip to the right tip. The two edges share their end points (the tips). */
+export interface FrontView {
+  /** Upper edge [x, y], left tip to right tip. */
+  upper: [number, number][];
+  /** Lower edge [x, y], left tip to right tip. */
+  lower: [number, number][];
+  /** Influence between stations. Zero at every station regardless. */
+  strength?: number;
+}
+
 export interface Groove {
   type: "groove";
   surface?: ("front" | "ledge") | null;
@@ -72,8 +82,8 @@ export interface HoldSpec {
   wall_angle_deg?: number;
   description?: string;
   stations: Station[];
-  front_view?: View | null;
-  top_view?: View | null;
+  front_view?: FrontView | null;
+  top_view?: TopView | null;
   end_caps?: EndCaps;
   features?: (Dent | Groove)[];
   mounting?: Mounting;
@@ -200,16 +210,16 @@ export interface Station {
   note?: string;
 }
 
-export interface ValidateResponse {
-  issues: Issue[];
-}
-
-/** A loose guide (front: [x, y] closed curve; top: [x, z], open with both ends on the wall, or closed). */
-export interface View {
+/** Loose guide seen from above ([x, z]): an open curve from the wall at the left end, out over the hold, back to the wall at the right end. First and last points sit on the wall (z = 0). */
+export interface TopView {
   points: [number, number][];
   /** Influence between stations. Zero at every station regardless. */
   strength?: number;
   corners?: number[];
+}
+
+export interface ValidateResponse {
+  issues: Issue[];
 }
 
 export type Feature = Dent | Groove;

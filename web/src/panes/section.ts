@@ -1,11 +1,11 @@
 // Section editor (z, y with the wall on the left): the authoritative drawing of each station.
 import { evalOpen, type Vec2 } from "../geometry/curves";
-import { autoLandmarks, insertPoint, isRoot, landmarkOrder, movePoint } from "../spec/edit";
+import { autoLandmarks, insertPoint, isRoot, landmarkNames, landmarkOrder, movePoint, sortStations } from "../spec/edit";
 import { tok } from "../theme";
 import { Pane, type DragHandler } from "./pane";
 
 export class SectionPane extends Pane {
-  drawing: Vec2[] | null = null; // in-progress redraw of the selected station
+  drawing: Vec2[] | null = null; // in-progress drawing (redraw of the selected station, or store.newStation)
   hung = false; // view tilted to the wall angle
 
   tool(): string {
@@ -18,26 +18,57 @@ export class SectionPane extends Pane {
     this.app.requestDraw();
   }
 
+  /** Start drawing a new station at x (used when there is no section to copy, e.g. the first one). */
+  startNew(x: number): void {
+    this.drawing = null;
+    this.app.store.setNewStation(x);
+    this.app.store.setTool("section", "draw");
+    this.fitView();
+    this.app.requestDraw();
+  }
+
+  cancelDrawing(): void {
+    this.drawing = null;
+    if (this.app.store.newStation !== null) this.app.store.setNewStation(null);
+  }
+
+  private finishDrawing(pts: Vec2[]): void {
+    const store = this.app.store;
+    if (store.newStation !== null) {
+      const x = store.newStation, names = landmarkNames(store.spec);
+      store.setNewStation(null);
+      store.mutate((s) => {
+        // The first station gets lip_apex (its highest point); later ones follow the existing landmarks.
+        const st = { x, points: pts, corners: [], note: "", landmarks: autoLandmarks(pts, s.stations.length ? names : ["lip_apex"]) };
+        s.stations.push(st);
+        store.sel.station = sortStations(s, st);
+        store.sel.point = null;
+      });
+    } else {
+      const names = Object.keys(store.station.landmarks);
+      store.mutate((s) => {
+        const t = s.stations[store.sel.station];
+        t.points = pts;
+        t.corners = [];
+        t.landmarks = autoLandmarks(pts, names);
+      });
+    }
+    store.setTool("section", "select");
+  }
+
   protected onDown(w: Vec2): DragHandler | null {
     const store = this.app.store, st = store.station;
-    if (!st) return null;
-    if (store.tools.section === "draw") {
+    if (store.tools.section === "draw" && (st || store.newStation !== null)) {
       if (!this.drawing) this.drawing = [[0, w[1]]];
       else if (w[0] < 1.5 && this.drawing.length >= 3) {
         const pts: Vec2[] = [...this.drawing, [0, w[1]]];
-        const names = Object.keys(st.landmarks);
         this.drawing = null;
-        store.mutate((s) => {
-          const t = s.stations[store.sel.station];
-          t.points = pts;
-          t.corners = [];
-          t.landmarks = autoLandmarks(pts, names);
-        });
-        store.setTool("section", "select");
+        this.finishDrawing(pts);
       } else this.drawing.push([Math.max(0, w[0]), w[1]]);
       this.app.requestDraw();
       return null;
     }
+    if (!st || store.newStation !== null) return null;
     if (store.tools.section !== "select") return null;
     let hit: number | null = null;
     st.points.forEach((p, i) => {
@@ -83,6 +114,7 @@ export class SectionPane extends Pane {
       for (const [z, y] of st.points) {
         y0 = Math.min(y0, y); y1 = Math.max(y1, y); z1 = Math.max(z1, z);
       }
+    if (!isFinite(y0)) [y0, y1, z1] = [0, 80, 40]; // nothing drawn yet: room for a typical hold
     this.fitTo(-4, z1 + 2, y0, y1, 0.06);
   }
 
@@ -96,10 +128,22 @@ export class SectionPane extends Pane {
     this.path([[-6, -400], [0, -400], [0, 400], [-6, 400]], true);
     c.fillStyle = tok("--wall");
     c.fill();
-    if (!st) return;
+    if (!st && store.newStation === null) {
+      this.message("No stations yet. Pick + Station in the front or top view, then click where the first section goes.");
+      return;
+    }
     const order = store.spec.stations;
-    const i = store.sel.station;
-    ([[order[i - 1], acc2, [5, 4]], [order[i + 1], muted, [2, 4]]] as const).forEach(([s2, col, dash]) => {
+    // Ghost the neighbours: of the selected station, or of where the new one will go.
+    let prev: typeof st | undefined, next: typeof st | undefined;
+    if (store.newStation !== null) {
+      const x = store.newStation;
+      prev = [...order].reverse().find((s) => s.x < x);
+      next = order.find((s) => s.x > x);
+    } else {
+      prev = order[store.sel.station - 1];
+      next = order[store.sel.station + 1];
+    }
+    ([[prev, acc2, [5, 4]], [next, muted, [2, 4]]] as const).forEach(([s2, col, dash]) => {
       if (!s2) return;
       this.path(evalOpen(s2.points, s2.corners, 0.2).dense);
       c.setLineDash([...dash]);
@@ -120,6 +164,10 @@ export class SectionPane extends Pane {
         c.stroke();
       }
       this.drawing.forEach((q) => this.dot(q, 4, acc, null));
+      return;
+    }
+    if (store.newStation !== null || !st) {
+      this.message(`New station at x = ${store.newStation}: click on the wall where the face starts, then up the face and over the lip, then on the wall again to finish.`);
       return;
     }
     const { dense } = evalOpen(st.points, st.corners, 0.1);
